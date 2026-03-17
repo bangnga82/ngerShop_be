@@ -1,7 +1,8 @@
 package com.example.ngerShop_be.modules.auth.service;
 
-import com.example.ngerShop_be.config.security.JwtService;
+import com.example.ngerShop_be.common.constants.UserStatus;
 import com.example.ngerShop_be.common.exception.BadRequestException;
+import com.example.ngerShop_be.config.security.JwtService;
 import com.example.ngerShop_be.modules.auth.dto.AuthResponse;
 import com.example.ngerShop_be.modules.auth.dto.LoginRequest;
 import com.example.ngerShop_be.modules.auth.dto.RegisterRequest;
@@ -9,27 +10,27 @@ import com.example.ngerShop_be.modules.user.entity.Role;
 import com.example.ngerShop_be.modules.user.entity.User;
 import com.example.ngerShop_be.modules.user.repository.RoleRepository;
 import com.example.ngerShop_be.modules.user.repository.UserRepository;
-import com.example.ngerShop_be.common.constants.UserStatus;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class AuthService {
@@ -39,6 +40,8 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final RestTemplate restTemplate;
+    private final ConcurrentMap<String, Instant> oauthStateStore = new ConcurrentHashMap<>();
+    private final Duration oauthStateTtl = Duration.ofMinutes(10);
 
     @Value("${app.oauth.google.clientId}")
     private String googleClientId;
@@ -114,16 +117,19 @@ public class AuthService {
     public String getGoogleLoginUrl() {
         String encodedRedirect = URLEncoder.encode(googleRedirectUri, StandardCharsets.UTF_8);
         String encodedScope = URLEncoder.encode(googleScopes, StandardCharsets.UTF_8);
+        String state = generateOauthState();
         return googleAuthUrl
                 + "?client_id=" + googleClientId
                 + "&redirect_uri=" + encodedRedirect
                 + "&response_type=code"
                 + "&scope=" + encodedScope
+                + "&state=" + state
                 + "&access_type=offline"
                 + "&prompt=consent";
     }
 
-    public AuthResponse handleGoogleCallback(String code) {
+    public AuthResponse handleGoogleCallback(String code, String state) {
+        validateOauthState(state);
         String accessToken = exchangeCodeForAccessToken(code);
         Map<String, Object> userInfo = fetchGoogleUserInfo(accessToken);
 
@@ -149,6 +155,7 @@ public class AuthService {
     private String exchangeCodeForAccessToken(String code) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         body.add("client_id", googleClientId);
         body.add("client_secret", googleClientSecret);
@@ -199,5 +206,21 @@ public class AuthService {
         Role role = new Role();
         role.setName(name);
         return role;
+    }
+
+    private String generateOauthState() {
+        String state = UUID.randomUUID().toString();
+        oauthStateStore.put(state, Instant.now().plus(oauthStateTtl));
+        return state;
+    }
+
+    private void validateOauthState(String state) {
+        if (state == null || state.isBlank()) {
+            throw new BadRequestException("Missing OAuth state");
+        }
+        Instant expiresAt = oauthStateStore.remove(state);
+        if (expiresAt == null || Instant.now().isAfter(expiresAt)) {
+            throw new BadRequestException("Invalid OAuth state");
+        }
     }
 }
