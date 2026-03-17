@@ -1,5 +1,7 @@
 package com.example.ngerShop_be.modules.user.dto;
 
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -15,5 +17,9 @@ public class AddressResponse {
     private String zipCode;
     private String description;
     private boolean isDefault;
-}
 
+    @JsonProperty("isDefault")
+    public boolean isDefault() {
+        return isDefault;
+    }
+}

@@ -2,10 +2,12 @@ package com.example.ngerShop_be.modules.user.service;
 
 import com.example.ngerShop_be.common.exception.NotFoundException;
 import com.example.ngerShop_be.modules.user.dto.AddressResponse;
+import com.example.ngerShop_be.modules.user.entity.Address;
 import com.example.ngerShop_be.modules.user.entity.User;
 import com.example.ngerShop_be.modules.user.repository.AddressRepository;
 import com.example.ngerShop_be.modules.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
