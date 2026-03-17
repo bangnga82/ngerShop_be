@@ -1,8 +1,17 @@
 package com.example.ngerShop_be.modules.user.service;
 
-
-import com.example.ngerShop_be.common.constants.UserStatus;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
+import com.example.ngerShop_be.common.exception.BadRequestException;
 import com.example.ngerShop_be.common.exception.NotFoundException;
+import com.example.ngerShop_be.common.constants.UserStatus;
 import com.example.ngerShop_be.modules.user.dto.*;
 import com.example.ngerShop_be.modules.user.entity.Address;
 import com.example.ngerShop_be.modules.user.entity.Role;
@@ -10,26 +19,12 @@ import com.example.ngerShop_be.modules.user.entity.User;
 import com.example.ngerShop_be.modules.user.repository.AddressRepository;
 import com.example.ngerShop_be.modules.user.repository.RoleRepository;
 import com.example.ngerShop_be.modules.user.repository.UserRepository;
-
-import com.example.ngerShop_be.common.exception.BadRequestException;
-
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.crossstore.ChangeSetPersister;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 @Service
 public class UserService {
@@ -45,6 +40,9 @@ public class UserService {
     @Value("${app.storage.avatarUrlPrefix}")
     private String avatarUrlPrefix;
 
+    @Value("${app.storage.avatarMaxBytes:5242880}")
+    private long avatarMaxBytes;
+
     public UserService(
             UserRepository userRepository,
             RoleRepository roleRepository,
@@ -59,7 +57,7 @@ public class UserService {
         this.addressService = addressService;
     }
 
-    public User createAdmin(String email, String password, String fullName) {
+    public AdminUserResponse createAdmin(String email, String password, String fullName) {
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email already exists");
         }
@@ -71,7 +69,7 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setFullName(fullName);
         user.setRoles(Set.of(adminRole));
-        return userRepository.save(user);
+        return toAdminResponse(userRepository.save(user));
     }
 
     public UserResponse createUser(String email, UserRequest request) {
@@ -113,6 +111,7 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
     }
+
     public Page<AdminUserResponse> getAllUsers(String query, UserStatus status, Pageable pageable) {
         return userRepository.searchUsers(status, query, pageable)
                 .map(this::toAdminResponse);
@@ -144,6 +143,7 @@ public class UserService {
         if (avatar == null || avatar.isEmpty()) {
             throw new BadRequestException("Avatar file is required");
         }
+        validateAvatar(avatar);
         User user = requireUser(email);
 
         String fileName = buildAvatarFileName(avatar.getOriginalFilename());
@@ -222,9 +222,22 @@ public class UserService {
         String extension = "";
         int dot = safeName.lastIndexOf('.');
         if (dot > -1 && dot < safeName.length() - 1) {
-            extension = safeName.substring(dot).toLowerCase();
+            extension = safeName.substring(dot).toLowerCase(Locale.ROOT);
         }
         return UUID.randomUUID() + extension;
+    }
+
+    private void validateAvatar(MultipartFile avatar) {
+        if (avatar.getSize() > avatarMaxBytes) {
+            throw new BadRequestException("Avatar file is too large");
+        }
+        String contentType = avatar.getContentType();
+        if (contentType == null || !(contentType.equals("image/png")
+                || contentType.equals("image/jpeg")
+                || contentType.equals("image/webp")
+                || contentType.equals("image/gif"))) {
+            throw new BadRequestException("Avatar file type is not supported");
+        }
     }
 
     private AdminUserResponse toAdminResponse(User user) {
