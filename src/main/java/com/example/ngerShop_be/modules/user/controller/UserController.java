@@ -1,0 +1,75 @@
+package com.example.ngerShop_be.modules.user.controller;
+
+import com.example.ngerShop_be.common.response.ApiResponse;
+import com.example.ngerShop_be.modules.user.dto.ChangePasswordRequest;
+import com.example.ngerShop_be.modules.user.dto.UserRequest;
+import com.example.ngerShop_be.modules.user.dto.UserResponse;
+import com.example.ngerShop_be.modules.user.service.UserService;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+@RestController
+@RequestMapping("/api/v1/users")
+public class UserController {
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<UserResponse>> createUser(
+            @Valid @RequestBody UserRequest request,
+            Authentication auth
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.createUser(requireEmail(auth), request)));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserResponse>> getMe(Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.getCurrentUser(requireEmail(auth))));
+    }
+
+    @PutMapping
+    public ResponseEntity<ApiResponse<UserResponse>> updateCurrentUser(
+            @RequestParam(name = "addressId", required = false) Long addressId,
+            @Valid @RequestBody UserRequest request,
+            Authentication auth
+    ) {
+        return ResponseEntity.ok(
+                ApiResponse.ok(userService.updateCurrentUser(requireEmail(auth), addressId, request))
+        );
+    }
+
+    @PutMapping("/upload")
+    public ResponseEntity<ApiResponse<UserResponse>> uploadAvatar(
+            @RequestParam("avatar") MultipartFile avatar,
+            Authentication auth
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(userService.uploadAvatar(requireEmail(auth), avatar)));
+    }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            Authentication auth
+    ) {
+        userService.changePassword(requireEmail(auth), request);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Password updated"));
+    }
+
+    private String requireEmail(Authentication auth) {
+        if (auth == null || auth.getName() == null) {
+            throw new IllegalArgumentException("Unauthorized");
+        }
+        return auth.getName();
+    }
+}
