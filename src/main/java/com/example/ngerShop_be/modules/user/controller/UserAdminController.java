@@ -37,7 +37,7 @@ public class UserAdminController {
 
     @PostMapping("/create-admin")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<User> createAdmin(@Valid @RequestBody CreateAdminRequest request) {
+    public ResponseEntity<AdminUserResponse > createAdmin(@Valid @RequestBody CreateAdminRequest request) {
         return ResponseEntity.ok(
                 userService.createAdmin(request.getEmail(), request.getPassword(), request.getFullName())
         );

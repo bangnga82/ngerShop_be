@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: ngershop_be
+    name: ngerShop_be
 
   datasource:
     url: jdbc:postgresql://localhost:5432/ngershop
@@ -14,7 +14,6 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
-
 app:
   security:
     jwt:
@@ -29,6 +28,11 @@ app:
       tokenUrl: "https://oauth2.googleapis.com/token"
       userInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo"
       scopes: "openid email profile"
-    storage:
-      avatarDir: "uploads/avatars"
-      avatarUrlPrefix: "/uploads/avatars"
+  storage:
+    avatarDir: "uploads/avatars"
+    avatarUrlPrefix: "/uploads/avatars"
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger
