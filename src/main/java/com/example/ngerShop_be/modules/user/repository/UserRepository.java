@@ -12,6 +12,7 @@ import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
+    Optional<User> findByUsername(String username);
 
     @Query("""
         select u from User u
@@ -19,7 +20,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
         where u.email = :email
         """)
     Optional<User> findByEmailWithRoles(@Param("email") String email);
+
+    @Query("""
+        select u from User u
+        left join fetch u.roles
+        where u.username = :username
+        """)
+    Optional<User> findByUsernameWithRoles(@Param("username") String username);
     boolean existsByEmail(String email);
+    boolean existsByUsername(String username);
     boolean existsByPhoneNumber(String phoneNumber);
 
     @Query("""
