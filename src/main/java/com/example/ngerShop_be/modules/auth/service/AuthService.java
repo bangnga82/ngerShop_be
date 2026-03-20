@@ -31,6 +31,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.Iterator;
+
 
 @Service
 public class AuthService {
@@ -84,14 +86,21 @@ public class AuthService {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("Email already exists");
         }
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new IllegalArgumentException("Username already exists");
+        }
+        if (!request.getPassword().equals(request.getConfirmPassword())) {
+            throw new BadRequestException("Password confirmation does not match");
+        }
 
         Role userRole = roleRepository.findByName("USER")
                 .orElseGet(() -> roleRepository.save(createRole("USER")));
 
         User user = new User();
         user.setEmail(request.getEmail());
+        user.setUsername(request.getUsername());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setFullName(request.getFullName());
+        user.setFullName(buildFullName(request.getFirstName(), request.getLastName()));
         user.setRoles(Set.of(userRole));
 
         userRepository.save(user);
@@ -100,9 +109,14 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+        if (user.getStatus() == UserStatus.LOCKED) {
+            throw new IllegalArgumentException("Account is locked");
+        }
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
             );
         } catch (AuthenticationException ex) {
             if (ex instanceof DisabledException) {
@@ -110,7 +124,7 @@ public class AuthService {
             }
             throw new IllegalArgumentException("Invalid credentials");
         }
-        String token = jwtService.generateToken(request.getEmail());
+        String token = jwtService.generateToken(user.getEmail());
         return new AuthResponse(token);
     }
 
@@ -208,7 +222,23 @@ public class AuthService {
         return role;
     }
 
+    private String buildFullName(String firstName, String lastName) {
+        String first = firstName == null ? "" : firstName.trim();
+        String last = lastName == null ? "" : lastName.trim();
+        if (first.isEmpty() && last.isEmpty()) {
+            return "";
+        }
+        if (first.isEmpty()) {
+            return last;
+        }
+        if (last.isEmpty()) {
+            return first;
+        }
+        return last + " " + first;
+    }
+
     private String generateOauthState() {
+        purgeExpiredOauthStates();
         String state = UUID.randomUUID().toString();
         oauthStateStore.put(state, Instant.now().plus(oauthStateTtl));
         return state;
@@ -218,9 +248,20 @@ public class AuthService {
         if (state == null || state.isBlank()) {
             throw new BadRequestException("Missing OAuth state");
         }
+        purgeExpiredOauthStates();
         Instant expiresAt = oauthStateStore.remove(state);
         if (expiresAt == null || Instant.now().isAfter(expiresAt)) {
             throw new BadRequestException("Invalid OAuth state");
+        }
+    }
+
+    private void purgeExpiredOauthStates() {
+        Instant now = Instant.now();
+        for (Iterator<Map.Entry<String, Instant>> it = oauthStateStore.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<String, Instant> entry = it.next();
+            if (entry.getValue() == null || now.isAfter(entry.getValue())) {
+                it.remove();
+            }
         }
     }
 }

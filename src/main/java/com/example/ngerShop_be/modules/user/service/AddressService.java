@@ -60,6 +60,9 @@ public class AddressService {
             unsetDefaultForUser(existing.getUser());
             existing.setIsDefault(true);
         }
+        else {
+            existing.setIsDefault(false);
+        }
         return toResponse(addressRepository.save(existing));
     }
 

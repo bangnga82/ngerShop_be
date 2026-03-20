@@ -6,16 +6,27 @@ import com.example.ngerShop_be.modules.auth.dto.LoginRequest;
 import com.example.ngerShop_be.modules.auth.dto.RegisterRequest;
 import com.example.ngerShop_be.modules.auth.service.AuthService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.view.RedirectView;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
     private final AuthService authService;
+    private final String googleFrontendRedirectUri;
 
-    public AuthController(AuthService authService) {
+    public AuthController(
+            AuthService authService,
+            @Value("${app.oauth.google.frontendRedirectUri:http://localhost:3000/auth/callback}")
+            String googleFrontendRedirectUri
+    ) {
         this.authService = authService;
+        this.googleFrontendRedirectUri = googleFrontendRedirectUri;
     }
 
     @PostMapping("/register")
@@ -34,10 +45,14 @@ public class AuthController {
     }
 
     @GetMapping("/callback")
-    public ResponseEntity<ApiResponse<AuthResponse>> googleCallback(
+    public RedirectView googleCallback(
             @RequestParam("code") String code,
             @RequestParam("state") String state
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(authService.handleGoogleCallback(code, state)));
+        AuthResponse response = authService.handleGoogleCallback(code, state);
+        String encodedToken = URLEncoder.encode(response.getToken(), StandardCharsets.UTF_8);
+        String separator = googleFrontendRedirectUri.contains("?") ? "&" : "?";
+        String redirectUrl = googleFrontendRedirectUri + separator + "token=" + encodedToken;
+        return new RedirectView(redirectUrl);
     }
 }

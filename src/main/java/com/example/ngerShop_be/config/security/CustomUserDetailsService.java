@@ -22,6 +22,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByEmailWithRoles(username)
+                .or(() -> userRepository.findByUsernameWithRoles(username))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
         if (user.getStatus() == UserStatus.LOCKED) {
             throw new DisabledException("User account is locked");
