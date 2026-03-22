@@ -1,6 +1,8 @@
 package com.example.ngerShop_be.modules.user.controller;
 
-import com.example.ngerShop_be.common.response.ApiResponse;
+
+import com.example.ngerShop_be.common.response.GlobalResponse;
+import com.example.ngerShop_be.common.response.MessageResponse;
 import com.example.ngerShop_be.modules.user.dto.ChangePasswordRequest;
 import com.example.ngerShop_be.modules.user.dto.UserRequest;
 import com.example.ngerShop_be.modules.user.dto.UserResponse;
@@ -26,44 +28,44 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<UserResponse>> createUser(
+    public ResponseEntity<GlobalResponse<UserResponse>> createUser(
             @Valid @RequestBody UserRequest request,
             Authentication auth
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(userService.createUser(requireEmail(auth), request)));
+        return ResponseEntity.ok(GlobalResponse.ok(userService.createUser(requireEmail(auth), request)));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<UserResponse>> getMe(Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.ok(userService.getCurrentUser(requireEmail(auth))));
+    public ResponseEntity<GlobalResponse<UserResponse>> getMe(Authentication auth) {
+        return ResponseEntity.ok(GlobalResponse.ok(userService.getCurrentUser(requireEmail(auth))));
     }
 
     @PutMapping
-    public ResponseEntity<ApiResponse<UserResponse>> updateCurrentUser(
+    public ResponseEntity<GlobalResponse<UserResponse>> updateCurrentUser(
             @RequestParam(name = "addressId", required = false) Long addressId,
             @Valid @RequestBody UserRequest request,
             Authentication auth
     ) {
         return ResponseEntity.ok(
-                ApiResponse.ok(userService.updateCurrentUser(requireEmail(auth), addressId, request))
+                GlobalResponse.ok(userService.updateCurrentUser(requireEmail(auth), addressId, request))
         );
     }
 
     @PutMapping("/upload")
-    public ResponseEntity<ApiResponse<UserResponse>> uploadAvatar(
+    public ResponseEntity<GlobalResponse<UserResponse>> uploadAvatar(
             @RequestParam("avatar") MultipartFile avatar,
             Authentication auth
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(userService.uploadAvatar(requireEmail(auth), avatar)));
+        return ResponseEntity.ok(GlobalResponse.ok(userService.uploadAvatar(requireEmail(auth), avatar)));
     }
 
     @PutMapping("/change-password")
-    public ResponseEntity<ApiResponse<Void>> changePassword(
+    public ResponseEntity<GlobalResponse<MessageResponse>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,
             Authentication auth
     ) {
         userService.changePassword(requireEmail(auth), request);
-        return ResponseEntity.ok(ApiResponse.ok(null, "Password updated"));
+        return ResponseEntity.ok(GlobalResponse.ok(new MessageResponse("Password updated")));
     }
 
     private String requireEmail(Authentication auth) {

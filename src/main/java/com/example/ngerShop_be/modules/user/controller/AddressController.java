@@ -1,6 +1,9 @@
 package com.example.ngerShop_be.modules.user.controller;
 
-import com.example.ngerShop_be.common.response.ApiResponse;
+
+
+import com.example.ngerShop_be.common.response.GlobalResponse;
+import com.example.ngerShop_be.common.response.MessageResponse;
 import com.example.ngerShop_be.modules.user.dto.AddressRequest;
 import com.example.ngerShop_be.modules.user.dto.AddressResponse;
 import com.example.ngerShop_be.modules.user.service.AddressService;
@@ -26,42 +29,42 @@ public class AddressController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<AddressResponse>>> getOwnAddresses(Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.ok(addressService.getOwnAddresses(requireEmail(auth))));
+    public ResponseEntity<GlobalResponse<List<AddressResponse>>> getOwnAddresses(Authentication auth) {
+        return ResponseEntity.ok(GlobalResponse.ok(addressService.getOwnAddresses(requireEmail(auth))));
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<AddressResponse>> createAddress(
+    public ResponseEntity<GlobalResponse<AddressResponse>> createAddress(
             @RequestBody AddressRequest address,
             Authentication auth
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(addressService.createAddress(requireEmail(auth), address)));
+        return ResponseEntity.ok(GlobalResponse.ok(addressService.createAddress(requireEmail(auth), address)));
     }
 
     @GetMapping("/{addressId}")
-    public ResponseEntity<ApiResponse<AddressResponse>> getAddressById(
+    public ResponseEntity<GlobalResponse<AddressResponse>> getAddressById(
             @PathVariable Long addressId,
             Authentication auth
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(addressService.getAddressById(addressId, requireEmail(auth))));
+        return ResponseEntity.ok(GlobalResponse.ok(addressService.getAddressById(addressId, requireEmail(auth))));
     }
 
     @PutMapping("/{addressId}")
-    public ResponseEntity<ApiResponse<AddressResponse>> updateAddress(
+    public ResponseEntity<GlobalResponse<AddressResponse>> updateAddress(
             @PathVariable Long addressId,
             @RequestBody AddressRequest address,
             Authentication auth
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(addressService.updateAddress(addressId, requireEmail(auth), address)));
+        return ResponseEntity.ok(GlobalResponse.ok(addressService.updateAddress(addressId, requireEmail(auth), address)));
     }
 
     @DeleteMapping("/{addressId}")
-    public ResponseEntity<ApiResponse<Void>> deleteAddress(
+    public ResponseEntity<GlobalResponse<MessageResponse>> deleteAddress(
             @PathVariable Long addressId,
             Authentication auth
     ) {
         addressService.deleteAddress(addressId, requireEmail(auth));
-        return ResponseEntity.ok(ApiResponse.ok(null, "Deleted"));
+        return ResponseEntity.ok(GlobalResponse.ok(new MessageResponse("Deleted")));
     }
 
     private String requireEmail(Authentication auth) {
