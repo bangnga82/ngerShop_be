@@ -2,44 +2,43 @@ package com.example.ngerShop_be.modules.user.entity;
 
 import com.example.ngerShop_be.common.constants.UserStatus;
 import jakarta.persistence.*;
-import lombok.Generated;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import com.example.ngerShop_be.modules.user.entity.Role;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
-
+@Entity
+@Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
-@Entity
-@Table(name="users")
+@AllArgsConstructor
+@Builder
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private long id;
 
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(nullable = false,unique = true,length = 255)
     private String email;
 
     @Column(unique = true, length = 100)
     private String username;
 
-    @Column(nullable = false, name = "password_hash", length = 255)
+    @Column(nullable = false,name = "password_hash",length = 255)
     private String passwordHash;
 
-    @Column(name = "full_name", length = 255)
+    @Column(name = "full_name",length = 255)
     private String fullName;
 
-    @Column(name = "phone_number", length = 50)
+    @Column(name = "phone_number",length = 50)
     private String phoneNumber;
 
-    @Column(name = "avatar_url", length = 500)
+    @Column(name = "avatar_url",length = 500)
     private String avatarUrl;
 
     private Boolean gender;
@@ -67,5 +66,4 @@ public class User {
     )
     private Set<Role> roles = new HashSet<>();
 
-    
 }

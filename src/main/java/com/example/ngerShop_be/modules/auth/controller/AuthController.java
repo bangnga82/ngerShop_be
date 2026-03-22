@@ -1,6 +1,6 @@
 package com.example.ngerShop_be.modules.auth.controller;
 
-import com.example.ngerShop_be.common.response.ApiResponse;
+import com.example.ngerShop_be.common.response.GlobalResponse;
 import com.example.ngerShop_be.modules.auth.dto.AuthResponse;
 import com.example.ngerShop_be.modules.auth.dto.LoginRequest;
 import com.example.ngerShop_be.modules.auth.dto.RegisterRequest;
@@ -30,18 +30,18 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(authService.register(request)));
+    public ResponseEntity<GlobalResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
+        return ResponseEntity.ok(GlobalResponse.ok(authService.register(request)));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(authService.login(request)));
+    public ResponseEntity<GlobalResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
+        return ResponseEntity.ok(GlobalResponse.ok(authService.login(request)));
     }
 
     @GetMapping("/login")
-    public ResponseEntity<ApiResponse<String>> loginWithGoogle() {
-        return ResponseEntity.ok(ApiResponse.ok(authService.getGoogleLoginUrl()));
+    public ResponseEntity<GlobalResponse<String>> loginWithGoogle() {
+        return ResponseEntity.ok(GlobalResponse.ok(authService.getGoogleLoginUrl()));
     }
 
     @GetMapping("/callback")

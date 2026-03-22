@@ -1,6 +1,8 @@
 package com.example.ngerShop_be.common.exception;
 
+
 import com.example.ngerShop_be.common.response.ErrorResponse;
+import com.example.ngerShop_be.common.response.GlobalResponse;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,25 +19,25 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(NotFoundException ex) {
+    public ResponseEntity<GlobalResponse<ErrorResponse>> handleNotFound(NotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorResponse.of("NOT_FOUND", ex.getMessage()));
+                .body(GlobalResponse.error(ErrorResponse.of("NOT_FOUND", ex.getMessage())));
     }
 
     @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex) {
+    public ResponseEntity<GlobalResponse<ErrorResponse>> handleBadRequest(BadRequestException ex) {
         return ResponseEntity.badRequest()
-                .body(ErrorResponse.of("BAD_REQUEST", ex.getMessage()));
+                .body(GlobalResponse.error(ErrorResponse.of("BAD_REQUEST", ex.getMessage())));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+    public ResponseEntity<GlobalResponse<ErrorResponse>> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.badRequest()
-                .body(ErrorResponse.of("BAD_REQUEST", ex.getMessage()));
+                .body(GlobalResponse.error(ErrorResponse.of("BAD_REQUEST", ex.getMessage())));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+    public ResponseEntity<GlobalResponse<ErrorResponse>> handleValidation(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -45,30 +47,30 @@ public class GlobalExceptionHandler {
             message = "Validation failed";
         }
         return ResponseEntity.badRequest()
-                .body(ErrorResponse.of("VALIDATION_ERROR", message));
+                .body(GlobalResponse.error(ErrorResponse.of("VALIDATION_ERROR", message)));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+    public ResponseEntity<GlobalResponse<ErrorResponse>> handleConstraintViolation(ConstraintViolationException ex) {
         return ResponseEntity.badRequest()
-                .body(ErrorResponse.of("VALIDATION_ERROR", ex.getMessage()));
+                .body(GlobalResponse.error(ErrorResponse.of("VALIDATION_ERROR", ex.getMessage())));
     }
 
     @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ErrorResponse> handleAuth(AuthenticationException ex) {
+    public ResponseEntity<GlobalResponse<ErrorResponse>> handleAuth(AuthenticationException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ErrorResponse.of("UNAUTHORIZED", ex.getMessage()));
+                .body(GlobalResponse.error(ErrorResponse.of("UNAUTHORIZED", ex.getMessage())));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+    public ResponseEntity<GlobalResponse<ErrorResponse>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ErrorResponse.of("FORBIDDEN", ex.getMessage()));
+                .body(GlobalResponse.error(ErrorResponse.of("FORBIDDEN", ex.getMessage())));
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
+    public ResponseEntity<GlobalResponse<ErrorResponse>> handleUnexpected(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ErrorResponse.of("INTERNAL_ERROR", "Unexpected error"));
+                .body(GlobalResponse.error(ErrorResponse.of("INTERNAL_ERROR", "Unexpected error")));
     }
 }

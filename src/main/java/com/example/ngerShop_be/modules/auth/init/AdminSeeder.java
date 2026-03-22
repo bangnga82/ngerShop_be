@@ -1,5 +1,6 @@
 package com.example.ngerShop_be.modules.auth.init;
 
+
 import com.example.ngerShop_be.modules.user.entity.Role;
 import com.example.ngerShop_be.modules.user.entity.User;
 import com.example.ngerShop_be.modules.user.repository.RoleRepository;
@@ -20,6 +21,9 @@ public class AdminSeeder implements CommandLineRunner {
     @Value("${app.admin.email:admin@local}")
     private String adminEmail;
 
+    @Value("${app.admin.username:admin}")
+    private String adminUsername;
+
     @Value("${app.admin.password:Admin@123}")
     private String adminPassword;
 
@@ -38,7 +42,12 @@ public class AdminSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (userRepository.existsByEmail(adminEmail)) {
+        User existing = userRepository.findByEmail(adminEmail).orElse(null);
+        if (existing != null) {
+            if (existing.getUsername() == null || existing.getUsername().isBlank()) {
+                existing.setUsername(adminUsername);
+                userRepository.save(existing);
+            }
             return;
         }
 
@@ -51,10 +60,10 @@ public class AdminSeeder implements CommandLineRunner {
 
         User admin = new User();
         admin.setEmail(adminEmail);
+        admin.setUsername(adminUsername);
         admin.setPasswordHash(passwordEncoder.encode(adminPassword));
         admin.setFullName(adminFullName);
         admin.setRoles(Set.of(adminRole));
         userRepository.save(admin);
     }
 }
-
