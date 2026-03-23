@@ -14,11 +14,14 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.UUID;
 
+//
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/variants")
 public class ProductVariantController {
     private final ProductVariantService variantService;
+
+    // --- CÁC API CHO ADMIN QUẢN LÝ ---
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
@@ -32,8 +35,7 @@ public class ProductVariantController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<GlobalResponse<ProductResponse>> updateProductVariant(
             @PathVariable(name = "variantId") UUID variantId,
-            @Valid
-            @ModelAttribute ProductVariantRequest variantRequest
+            @Valid @ModelAttribute ProductVariantRequest variantRequest
     ) {
         return ResponseEntity.ok(variantService.updateVariantProduct(variantId, variantRequest));
     }
@@ -55,26 +57,7 @@ public class ProductVariantController {
         return ResponseEntity.ok(variantService.uploadImageToVariant(variantId, image));
     }
 
-    @PostMapping("/check-stock")
-    public ResponseEntity<Boolean> checkStock(
-            @RequestBody @Valid List<OrderItemRequest> requests
-    ) {
-        return ResponseEntity.ok(variantService.checkStock(requests));
-    }
-
-    @PostMapping("/get-prices")
-    public ResponseEntity<List<ProductPriceResponse>> getPrices(
-            @RequestBody PurchaseRequest request
-    ) {
-        return ResponseEntity.ok(variantService.getPrices(request));
-    }
-
-    @PutMapping("/update-stock")
-    public ResponseEntity<Void> updateStock(
-            @RequestBody @Valid List<OrderItemRequest> requests
-    ) {
-        return ResponseEntity.ok(variantService.updateStock(requests));
-    }
+    // --- CÁC API CHO NGƯỜI DÙNG XEM ---
 
     @GetMapping("/{variantId}")
     public ResponseEntity<GlobalResponse<ProductVariantResponse>> getProductVariantById(
@@ -82,4 +65,7 @@ public class ProductVariantController {
     ) {
         return ResponseEntity.ok(variantService.getProductVariantById(variantId));
     }
+
+    // ĐÃ XÓA: check-stock, get-prices, update-stock
+    // Vì OrderServiceImpl sẽ gọi trực tiếp các hàm này thông qua variantService (Java call)
 }
