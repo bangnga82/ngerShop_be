@@ -1,6 +1,5 @@
 package com.example.ngerShop_be.common.response;
 
-
 import java.util.List;
 
 public record PageResponse<T>(
