@@ -1,6 +1,5 @@
 package com.example.ngerShop_be.common.exception;
 
-
 import com.example.ngerShop_be.common.response.ErrorResponse;
 import com.example.ngerShop_be.common.response.GlobalResponse;
 import jakarta.validation.ConstraintViolationException;
@@ -12,11 +11,14 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.stream.Collectors;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<GlobalResponse<ErrorResponse>> handleNotFound(NotFoundException ex) {
@@ -70,7 +72,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<GlobalResponse<ErrorResponse>> handleUnexpected(Exception ex) {
+        log.error("Unexpected error", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(GlobalResponse.error(ErrorResponse.of("INTERNAL_ERROR", "Unexpected error")));
+                .body(GlobalResponse.error(ErrorResponse.of("INTERNAL_ERROR", ex.getMessage() != null ? ex.getMessage() : "Unexpected error")));
+    }
+    // Thêm cái này để bắt các lỗi nghiệp vụ như "Hết hàng", "Giỏ hàng trống"...
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<GlobalResponse<ErrorResponse>> handleRuntimeException(RuntimeException ex) {
+        log.error("Runtime error", ex);
+        return ResponseEntity.badRequest()
+                .body(GlobalResponse.error(ErrorResponse.of("BUSINESS_ERROR", ex.getMessage())));
     }
 }

@@ -1,7 +1,5 @@
 package com.example.ngerShop_be.modules.user.controller;
 
-
-
 import com.example.ngerShop_be.common.response.GlobalResponse;
 import com.example.ngerShop_be.common.response.MessageResponse;
 import com.example.ngerShop_be.modules.user.dto.AddressRequest;
@@ -30,7 +28,7 @@ public class AddressController {
 
     @GetMapping
     public ResponseEntity<GlobalResponse<List<AddressResponse>>> getOwnAddresses(Authentication auth) {
-        return ResponseEntity.ok(GlobalResponse.ok(addressService.getOwnAddresses(requireEmail(auth))));
+        return ResponseEntity.ok(GlobalResponse.ok(addressService.getOwnAddresses(requireUserId(auth))));
     }
 
     @PostMapping
@@ -38,7 +36,7 @@ public class AddressController {
             @RequestBody AddressRequest address,
             Authentication auth
     ) {
-        return ResponseEntity.ok(GlobalResponse.ok(addressService.createAddress(requireEmail(auth), address)));
+        return ResponseEntity.ok(GlobalResponse.ok(addressService.createAddress(requireUserId(auth), address)));
     }
 
     @GetMapping("/{addressId}")
@@ -46,7 +44,7 @@ public class AddressController {
             @PathVariable Long addressId,
             Authentication auth
     ) {
-        return ResponseEntity.ok(GlobalResponse.ok(addressService.getAddressById(addressId, requireEmail(auth))));
+        return ResponseEntity.ok(GlobalResponse.ok(addressService.getAddressById(addressId, requireUserId(auth))));
     }
 
     @PutMapping("/{addressId}")
@@ -55,7 +53,7 @@ public class AddressController {
             @RequestBody AddressRequest address,
             Authentication auth
     ) {
-        return ResponseEntity.ok(GlobalResponse.ok(addressService.updateAddress(addressId, requireEmail(auth), address)));
+        return ResponseEntity.ok(GlobalResponse.ok(addressService.updateAddress(addressId, requireUserId(auth), address)));
     }
 
     @DeleteMapping("/{addressId}")
@@ -63,14 +61,18 @@ public class AddressController {
             @PathVariable Long addressId,
             Authentication auth
     ) {
-        addressService.deleteAddress(addressId, requireEmail(auth));
+        addressService.deleteAddress(addressId, requireUserId(auth));
         return ResponseEntity.ok(GlobalResponse.ok(new MessageResponse("Deleted")));
     }
 
-    private String requireEmail(Authentication auth) {
+    private Long requireUserId(Authentication auth) {
         if (auth == null || auth.getName() == null) {
             throw new RuntimeException("Unauthorized");
         }
-        return auth.getName();
+        try {
+            return Long.parseLong(auth.getName());
+        } catch (NumberFormatException ex) {
+            throw new RuntimeException("Invalid user id");
+        }
     }
 }
