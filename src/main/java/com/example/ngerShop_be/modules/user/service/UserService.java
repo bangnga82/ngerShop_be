@@ -72,39 +72,39 @@ public class UserService {
         return toAdminResponse(userRepository.save(user));
     }
 
-    public UserResponse createUser(String email, UserRequest request) {
-        User user = requireUser(email);
+    public UserResponse createUser(Long userId, UserRequest request) {
+        User user = requireUser(userId);
         applyUserUpdates(user, request);
         userRepository.save(user);
 
         if (request.getAddress() != null) {
-            addressService.createAddress(email, request.getAddress());
+            addressService.createAddress(userId, request.getAddress());
         }
         return toResponse(user);
     }
 
-    public UserResponse updateCurrentUser(String email, Long addressId, UserRequest request) {
-        User user = requireUser(email);
+    public UserResponse updateCurrentUser(Long userId, Long addressId, UserRequest request) {
+        User user = requireUser(userId);
         applyUserUpdates(user, request);
         userRepository.save(user);
 
         if (request.getAddress() != null) {
             if (addressId != null) {
-                addressService.updateAddress(addressId, email, request.getAddress());
+                addressService.updateAddress(addressId, userId, request.getAddress());
             } else {
-                addressService.createAddress(email, request.getAddress());
+                addressService.createAddress(userId, request.getAddress());
             }
         }
         return toResponse(user);
     }
 
-    public UserResponse getCurrentUser(String email) {
-        User user = requireUser(email);
+    public UserResponse getCurrentUser(Long userId) {
+        User user = requireUser(userId);
         return toResponse(user);
     }
 
-    public void changePassword(String email, ChangePasswordRequest request) {
-        User user = requireUser(email);
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        User user = requireUser(userId);
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
             throw new BadRequestException("Current password is incorrect");
         }
@@ -139,12 +139,12 @@ public class UserService {
         return toAdminResponse(user);
     }
 
-    public UserResponse uploadAvatar(String email, MultipartFile avatar) {
+    public UserResponse uploadAvatar(Long userId, MultipartFile avatar) {
         if (avatar == null || avatar.isEmpty()) {
             throw new BadRequestException("Avatar file is required");
         }
         validateAvatar(avatar);
-        User user = requireUser(email);
+        User user = requireUser(userId);
 
         String fileName = buildAvatarFileName(avatar.getOriginalFilename());
         Path baseDir = Paths.get(avatarDir).toAbsolutePath().normalize();
@@ -165,10 +165,11 @@ public class UserService {
         return toResponse(user);
     }
 
-    private User requireUser(String email) {
-        return userRepository.findByEmail(email)
+    private User requireUser(Long userId) {
+        return userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
     }
+
 
     private void applyUserUpdates(User user, UserRequest request) {
         if (request.getFullName() != null) {

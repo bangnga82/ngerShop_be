@@ -1,6 +1,5 @@
 package com.example.ngerShop_be.modules.user.repository;
 
-
 import com.example.ngerShop_be.common.constants.UserStatus;
 import com.example.ngerShop_be.modules.user.entity.User;
 import org.springframework.data.domain.Page;
@@ -27,6 +26,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
         where u.username = :username
         """)
     Optional<User> findByUsernameWithRoles(@Param("username") String username);
+
+    @Query("""
+        select u from User u
+        left join fetch u.roles
+        where u.id = :id
+        """)
+    Optional<User> findByIdWithRoles(@Param("id") Long id);
     boolean existsByEmail(String email);
     boolean existsByUsername(String username);
     boolean existsByPhoneNumber(String phoneNumber);

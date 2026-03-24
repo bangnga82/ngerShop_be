@@ -1,6 +1,5 @@
 package com.example.ngerShop_be.modules.user.controller;
 
-
 import com.example.ngerShop_be.common.response.GlobalResponse;
 import com.example.ngerShop_be.common.response.MessageResponse;
 import com.example.ngerShop_be.modules.user.dto.ChangePasswordRequest;
@@ -32,12 +31,12 @@ public class UserController {
             @Valid @RequestBody UserRequest request,
             Authentication auth
     ) {
-        return ResponseEntity.ok(GlobalResponse.ok(userService.createUser(requireEmail(auth), request)));
+        return ResponseEntity.ok(GlobalResponse.ok(userService.createUser(requireUserId(auth), request)));
     }
 
     @GetMapping("/me")
     public ResponseEntity<GlobalResponse<UserResponse>> getMe(Authentication auth) {
-        return ResponseEntity.ok(GlobalResponse.ok(userService.getCurrentUser(requireEmail(auth))));
+        return ResponseEntity.ok(GlobalResponse.ok(userService.getCurrentUser(requireUserId(auth))));
     }
 
     @PutMapping
@@ -47,7 +46,7 @@ public class UserController {
             Authentication auth
     ) {
         return ResponseEntity.ok(
-                GlobalResponse.ok(userService.updateCurrentUser(requireEmail(auth), addressId, request))
+                GlobalResponse.ok(userService.updateCurrentUser(requireUserId(auth), addressId, request))
         );
     }
 
@@ -56,7 +55,7 @@ public class UserController {
             @RequestParam("avatar") MultipartFile avatar,
             Authentication auth
     ) {
-        return ResponseEntity.ok(GlobalResponse.ok(userService.uploadAvatar(requireEmail(auth), avatar)));
+        return ResponseEntity.ok(GlobalResponse.ok(userService.uploadAvatar(requireUserId(auth), avatar)));
     }
 
     @PutMapping("/change-password")
@@ -64,14 +63,18 @@ public class UserController {
             @Valid @RequestBody ChangePasswordRequest request,
             Authentication auth
     ) {
-        userService.changePassword(requireEmail(auth), request);
+        userService.changePassword(requireUserId(auth), request);
         return ResponseEntity.ok(GlobalResponse.ok(new MessageResponse("Password updated")));
     }
 
-    private String requireEmail(Authentication auth) {
+    private Long requireUserId(Authentication auth) {
         if (auth == null || auth.getName() == null) {
             throw new IllegalArgumentException("Unauthorized");
         }
-        return auth.getName();
+        try {
+            return Long.parseLong(auth.getName());
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Invalid user id");
+        }
     }
 }
