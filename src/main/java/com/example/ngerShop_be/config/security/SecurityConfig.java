@@ -31,17 +31,24 @@ public class SecurityConfig {
                                 "/swagger/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/api-docs/**"
+                                "/api-docs/**",
+                                "/uploads/**"
                         ).permitAll()
-                        .requestMatchers("/uploads/**").permitAll()
-                        .requestMatchers("/api/products/**").permitAll()
+
+                        // Chỉ cho phép XEM sản phẩm tự do
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/products/**").permitAll()
+
+                        // Giỏ hàng và Đơn hàng phải Đăng nhập
+                        .requestMatchers("/api/v1/carts/**").authenticated()
+                        .requestMatchers("/api/v1/orders/**").authenticated()
+
                         .anyRequest().authenticated()
                 );
 
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
-
+    // Trong file SecurityConfig.java
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
