@@ -1,9 +1,11 @@
 package com.example.ngerShop_be.modules.product.controller;
 
 import com.example.ngerShop_be.common.response.GlobalResponse;
-import com.example.ngerShop_be.modules.product.dto.*;
+import com.example.ngerShop_be.modules.product.dto.ProductResponse;
+import com.example.ngerShop_be.modules.product.dto.ProductVariantRequest;
+import com.example.ngerShop_be.modules.product.dto.ProductVariantResponse;
 import com.example.ngerShop_be.modules.product.service.ProductVariantService;
-import jakarta.validation.Valid;
+import com.example.ngerShop_be.common.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -11,7 +13,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.UUID;
 
 //
@@ -26,8 +27,14 @@ public class ProductVariantController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<GlobalResponse<ProductResponse>> createProductVariantToProduct(
-            @ModelAttribute @Valid ProductVariantRequest variantRequest
+            @RequestParam("productId") UUID productId,
+            @RequestParam("price") String price,
+            @RequestParam("stock") String stock,
+            @RequestParam(name = "image", required = false) MultipartFile image
     ) {
+        Double parsedPrice = parseNonNegativeDouble(price, "price");
+        Integer parsedStock = parseNonNegativeInt(stock, "stock");
+        ProductVariantRequest variantRequest = new ProductVariantRequest(productId, parsedPrice, parsedStock, image);
         return ResponseEntity.ok(variantService.createVariantToProduct(variantRequest));
     }
 
@@ -35,9 +42,45 @@ public class ProductVariantController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<GlobalResponse<ProductResponse>> updateProductVariant(
             @PathVariable(name = "variantId") UUID variantId,
-            @Valid @ModelAttribute ProductVariantRequest variantRequest
+            @RequestParam("productId") UUID productId,
+            @RequestParam("price") String price,
+            @RequestParam("stock") String stock,
+            @RequestParam(name = "image", required = false) MultipartFile image
     ) {
+        Double parsedPrice = parseNonNegativeDouble(price, "price");
+        Integer parsedStock = parseNonNegativeInt(stock, "stock");
+        ProductVariantRequest variantRequest = new ProductVariantRequest(productId, parsedPrice, parsedStock, image);
         return ResponseEntity.ok(variantService.updateVariantProduct(variantId, variantRequest));
+    }
+
+    private Integer parseNonNegativeInt(String value, String field) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new BadRequestException(field + " cannot be null");
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            if (parsed < 0) {
+                throw new BadRequestException(field + " must be >= 0");
+            }
+            return parsed;
+        } catch (NumberFormatException ex) {
+            throw new BadRequestException(field + " is invalid");
+        }
+    }
+
+    private Double parseNonNegativeDouble(String value, String field) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new BadRequestException(field + " cannot be null");
+        }
+        try {
+            double parsed = Double.parseDouble(value.trim());
+            if (parsed < 0) {
+                throw new BadRequestException(field + " must be >= 0");
+            }
+            return parsed;
+        } catch (NumberFormatException ex) {
+            throw new BadRequestException(field + " is invalid");
+        }
     }
 
     @DeleteMapping("/{variantId}")

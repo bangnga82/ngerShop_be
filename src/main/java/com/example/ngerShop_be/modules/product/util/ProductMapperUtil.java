@@ -1,12 +1,12 @@
 package com.example.ngerShop_be.modules.product.util;
 
+import com.example.ngerShop_be.modules.product.entity.Product;
+import com.example.ngerShop_be.modules.product.entity.ProductAttribute;
+import com.example.ngerShop_be.modules.product.entity.ProductVariant;
 import com.example.ngerShop_be.modules.product.dto.ProductAttributeResponse;
 import com.example.ngerShop_be.modules.product.dto.ProductImageResponse;
 import com.example.ngerShop_be.modules.product.dto.ProductResponse;
 import com.example.ngerShop_be.modules.product.dto.ProductVariantResponse;
-import com.example.ngerShop_be.modules.product.entity.Product;
-import com.example.ngerShop_be.modules.product.entity.ProductAttribute;
-import com.example.ngerShop_be.modules.product.entity.ProductVariant;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -50,6 +50,9 @@ public class ProductMapperUtil {
     }
 
     private List<ProductAttributeResponse> toAttributeResponses(List<ProductAttribute> attrs) {
+        if (attrs == null || attrs.isEmpty()) {
+            return List.of();
+        }
         return attrs.stream()
                 .map(a -> ProductAttributeResponse.builder()
                         .id(a.getId())
