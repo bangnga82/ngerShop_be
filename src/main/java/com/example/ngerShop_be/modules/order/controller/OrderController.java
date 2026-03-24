@@ -13,8 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -28,52 +27,36 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    /**
-     * 1. Khách hàng đặt hàng mới
-     */
     @PostMapping
     public GlobalResponse<OrderResponse> createOrder(
             @RequestBody @Valid OrderRequest request,
-            @AuthenticationPrincipal Jwt jwt
+            Authentication auth
     ) {
-        return orderService.createOrder(request, jwt);
+        return orderService.createOrder(request, requireUserId(auth));
     }
 
-    /**
-     * 2. Khách hàng xem lịch sử đơn hàng của chính mình
-     */
     @GetMapping("/my-orders")
     public GlobalResponse<PageResponse<OrderResponse>> getMyOrders(
             @PageableDefault(size = 10) Pageable pageable,
             @RequestParam(required = false) OrderStatus status,
-            @AuthenticationPrincipal Jwt jwt
+            Authentication auth
     ) {
-        return orderService.findOwnOrders(pageable, status, jwt);
+        return orderService.findOwnOrders(pageable, status, requireUserId(auth));
     }
 
-    /**
-     * 3. Xem chi tiết đơn hàng theo ID
-     */
     @GetMapping("/{orderId}")
     public GlobalResponse<OrderResponse> getOrderById(@PathVariable UUID orderId) {
         return orderService.findOrderById(orderId);
     }
 
-    /**
-     * 4. Tìm đơn hàng nhanh qua mã Reference (Ví dụ: TECH-123456)
-     */
     @GetMapping("/reference/{reference}")
     public GlobalResponse<OrderResponse> getByReference(
             @PathVariable String reference,
-            @AuthenticationPrincipal Jwt jwt
+            Authentication auth
     ) {
-        return orderService.getByReference(reference, jwt);
+        return orderService.getByReference(reference, requireUserId(auth));
     }
 
-    /**
-     * 5. ADMIN: Quản lý và lọc toàn bộ đơn hàng của hệ thống
-     * Sử dụng OrderSpecification bạn đã viết để lọc theo ngày, giá, sản phẩm...
-     */
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN')")
     public GlobalResponse<PageResponse<OrderResponse>> findAllOrders(
@@ -90,9 +73,6 @@ public class OrderController {
         return orderService.findAllOrders(status, customerId, paymentMethod, minTotal, maxTotal, productId, startDate, endDate, pageable);
     }
 
-    /**
-     * 6. ADMIN: Cập nhật trạng thái đơn hàng (Duyệt đơn, Giao hàng, Hủy đơn)
-     */
     @PatchMapping("/{orderId}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public GlobalResponse<OrderResponse> changeStatus(
@@ -102,11 +82,28 @@ public class OrderController {
         return orderService.changeOrderStatus(orderId, status);
     }
 
-    /**
-     * 7. Callback xử lý kết quả thanh toán trực tuyến
-     */
     @GetMapping("/payment-confirmation")
     public GlobalResponse<String> paymentConfirmation(@RequestParam Map<String, String> params) {
         return orderService.confirmationOrder(params);
+    }
+
+    @PostMapping("/checkout")
+    public GlobalResponse<OrderResponse> checkout(
+            Authentication auth,
+            @RequestBody @Valid OrderRequest request
+    ) {
+        OrderResponse result = orderService.checkout(requireUserId(auth), request);
+        return GlobalResponse.ok(result);
+    }
+
+    private Long requireUserId(Authentication auth) {
+        if (auth == null || auth.getName() == null) {
+            throw new IllegalArgumentException("Unauthorized");
+        }
+        try {
+            return Long.parseLong(auth.getName());
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Invalid user id");
+        }
     }
 }

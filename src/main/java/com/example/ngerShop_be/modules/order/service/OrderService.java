@@ -1,13 +1,12 @@
 package com.example.ngerShop_be.modules.order.service;
 
-import com.example.ngerShop_be.common.constants.OrderStatus;
-import com.example.ngerShop_be.common.constants.PaymentMethod;
 import com.example.ngerShop_be.common.response.GlobalResponse;
 import com.example.ngerShop_be.common.response.PageResponse;
+import com.example.ngerShop_be.common.constants.OrderStatus;
+import com.example.ngerShop_be.common.constants.PaymentMethod;
 import com.example.ngerShop_be.modules.order.dto.OrderRequest;
 import com.example.ngerShop_be.modules.order.dto.OrderResponse;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -16,10 +15,10 @@ import java.util.UUID;
 public interface OrderService {
 
     // Khách hàng đặt hàng
-    GlobalResponse<OrderResponse> createOrder(OrderRequest request, Jwt jwt);
+    GlobalResponse<OrderResponse> createOrder(OrderRequest request, Long userId);
 
     // Khách hàng xem lịch sử đơn hàng của mình
-    GlobalResponse<PageResponse<OrderResponse>> findOwnOrders(Pageable pageable, OrderStatus status, Jwt jwt);
+    GlobalResponse<PageResponse<OrderResponse>> findOwnOrders(Pageable pageable, OrderStatus status, Long userId);
 
     // Xem chi tiết một đơn hàng
     GlobalResponse<OrderResponse> findOrderById(UUID orderId);
@@ -28,7 +27,7 @@ public interface OrderService {
     GlobalResponse<OrderResponse> changeOrderStatus(UUID orderId, OrderStatus status);
 
     // Tìm đơn hàng theo mã tham chiếu (dùng khi check thanh toán VNPay/Momo)
-    GlobalResponse<OrderResponse> getByReference(String reference, Jwt jwt);
+    GlobalResponse<OrderResponse> getByReference(String reference, Long userId);
 
     // Admin tìm kiếm và lọc đơn hàng (Dùng Specification)
     GlobalResponse<PageResponse<OrderResponse>> findAllOrders(
@@ -45,4 +44,5 @@ public interface OrderService {
 
     // Xử lý callback sau khi thanh toán xong (Momo/VNPay)
     GlobalResponse<String> confirmationOrder(Map<String, String> requestParams);
+    OrderResponse checkout(Long userId, OrderRequest request);
 }
