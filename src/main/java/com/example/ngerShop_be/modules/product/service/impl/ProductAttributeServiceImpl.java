@@ -1,5 +1,7 @@
 package com.example.ngerShop_be.modules.product.service.impl;
 
+import com.example.ngerShop_be.common.constants.AttributeType;
+import com.example.ngerShop_be.common.exception.BadRequestException;
 import com.example.ngerShop_be.common.exception.NotFoundException;
 import com.example.ngerShop_be.common.response.GlobalResponse;
 import com.example.ngerShop_be.modules.product.dto.ProductAttributeRequest;
@@ -82,10 +84,22 @@ public class ProductAttributeServiceImpl implements ProductAttributeService {
     }
     @Override
     public GlobalResponse<List<ProductAttributeResponse>> findByTypeAndValue(String type, String value) {
-        List<ProductAttributeResponse> data = attributeRepository.findByTypeAndValue(type, value)
+        AttributeType typeEnum = parseType(type);
+        List<ProductAttributeResponse> data = attributeRepository.findByTypeAndValue(typeEnum, value)
                 .stream()
                 .map(productMapperUtil::toAttributeResponse)
                 .toList();
         return GlobalResponse.ok(data);
+    }
+
+    private AttributeType parseType(String type) {
+        if (type == null || type.isBlank()) {
+            throw new BadRequestException("Loai thuoc tinh khong duoc de trong");
+        }
+        try {
+            return AttributeType.valueOf(type.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Loai thuoc tinh khong hop le: " + type);
+        }
     }
 }

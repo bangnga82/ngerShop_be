@@ -1,10 +1,10 @@
 package com.example.ngerShop_be.modules.product.service.impl;
 
+import com.example.ngerShop_be.common.exception.BusinessException;
 import com.example.ngerShop_be.common.exception.NotFoundException;
 import com.example.ngerShop_be.common.response.GlobalResponse;
-import com.example.ngerShop_be.modules.product.dto.*;
-// QUAN TRỌNG: Thêm import này để khớp với Interface bạn vừa sửa
 import com.example.ngerShop_be.modules.order.dto.OrderItemRequest;
+import com.example.ngerShop_be.modules.product.dto.*;
 import com.example.ngerShop_be.modules.product.entity.Product;
 import com.example.ngerShop_be.modules.product.entity.ProductVariant;
 import com.example.ngerShop_be.modules.product.repository.ProductRepository;
@@ -27,8 +27,6 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     private final ProductRepository productRepository;
     private final FileUtil fileUtil;
     private final ProductMapperUtil productMapperUtil;
-
-    // ... (Các hàm create, update, delete giữ nguyên)
 
     @Override
     @Transactional
@@ -94,7 +92,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
                 .price(v.getPrice())
                 .imageUrl(v.getImageUrl())
                 .attributes(v.getAttributes().stream()
-                        .map(a -> com.example.ngerShop_be.modules.product.dto.ProductAttributeResponse.builder()
+                        .map(a -> ProductAttributeResponse.builder()
                                 .id(a.getId())
                                 .type(a.getType() != null ? a.getType().name() : null)
                                 .value(a.getValue())
@@ -104,13 +102,11 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         return GlobalResponse.ok(response);
     }
 
-    // --- CÁC HÀM PHỤC VỤ ORDER SERVICE (DÙNG ORDERITEMREQUEST CỦA MODULE ORDER) ---
-
     @Override
     public boolean checkStock(List<OrderItemRequest> requests) {
         for (OrderItemRequest req : requests) {
             ProductVariant v = variantRepository.findById(req.variantId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy biến thể ID: " + req.variantId()));
+                    .orElseThrow(() -> new NotFoundException("Khong tim thay bien the ID: " + req.variantId()));
             if (v.getStock() < req.quantity()) {
                 return false;
             }
@@ -122,7 +118,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     public List<ProductPriceResponse> getProductPrices(List<UUID> variantIds) {
         return variantIds.stream().map(id -> {
             ProductVariant v = variantRepository.findById(id)
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy biến thể ID: " + id));
+                    .orElseThrow(() -> new NotFoundException("Khong tim thay bien the ID: " + id));
             return new ProductPriceResponse(
                     v.getId(),
                     v.getProduct().getName(),
@@ -137,24 +133,22 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     public void updateStock(List<OrderItemRequest> requests) {
         for (OrderItemRequest req : requests) {
             ProductVariant v = variantRepository.findById(req.variantId())
-                    .orElseThrow(() -> new NotFoundException("Không tìm thấy biến thể"));
+                    .orElseThrow(() -> new NotFoundException("Khong tim thay bien the"));
 
-            int newStock = v.getStock() - req.quantity();
-            if (newStock < 0) {
-                throw new RuntimeException("Sản phẩm " + v.getProduct().getName() + " đã hết hàng!");
+            int updated = variantRepository.updateStock(v.getId(), req.quantity());
+            if (updated == 0) {
+                throw new BusinessException("San pham " + v.getProduct().getName() + " da het hang!");
             }
-            v.setStock(newStock);
-            variantRepository.save(v);
         }
     }
 
     private Product requireProduct(UUID id) {
         return productRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm với ID cung cấp"));
+                .orElseThrow(() -> new NotFoundException("Khong tim thay san pham voi ID cung cap"));
     }
 
     private ProductVariant requireVariant(UUID id) {
         return variantRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Không tìm thấy sản phẩm biến thể với ID cung cấp"));
+                .orElseThrow(() -> new NotFoundException("Khong tim thay san pham bien the voi ID cung cap"));
     }
 }

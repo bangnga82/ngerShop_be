@@ -1,5 +1,6 @@
 package com.example.ngerShop_be.modules.product.repository;
 
+import com.example.ngerShop_be.common.constants.AttributeType;
 import com.example.ngerShop_be.modules.product.entity.ProductAttribute;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,9 +18,9 @@ public interface ProductAttributeRepository extends JpaRepository<ProductAttribu
 
     // Query tìm kiếm linh hoạt
     @Query("SELECT pa FROM ProductAttribute pa " +
-            "WHERE LOWER(pa.type) = LOWER(:type) " +
+            "WHERE pa.type = :type " +
             "AND LOWER(pa.value) LIKE LOWER(CONCAT('%', :value, '%'))")
-    List<ProductAttribute> findByTypeAndValue(@Param("type") String type, @Param("value") String value);
+    List<ProductAttribute> findByTypeAndValue(@Param("type") AttributeType type, @Param("value") String value);
 
     // Thêm hàm này nếu bạn muốn xóa nhanh tất cả thuộc tính của 1 Variant khi xóa Variant đó
     void deleteByProductVariantId(UUID variantId);
