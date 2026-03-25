@@ -2,6 +2,7 @@ package com.example.ngerShop_be.modules.order.service.impl;
 
 import com.example.ngerShop_be.common.constants.OrderStatus;
 import com.example.ngerShop_be.common.constants.PaymentMethod;
+import com.example.ngerShop_be.common.exception.BadRequestException;
 import com.example.ngerShop_be.common.exception.BusinessException;
 import com.example.ngerShop_be.common.exception.NotFoundException;
 import com.example.ngerShop_be.common.response.GlobalResponse;
@@ -88,7 +89,7 @@ public class OrderServiceImpl implements OrderService {
                 .paymentMethod(request.paymentMethod())
                 .reference(GeneratorUtil.generatorReference())
                 .status(OrderStatus.PENDING)
-                .userId(user.getId().toString())
+                .userId(user.getId())
                 .totalAmount(totalAmount)
                 .addressId(request.addressId())
                 .notes(request.notes())
@@ -127,7 +128,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public GlobalResponse<PageResponse<OrderResponse>> findOwnOrders(Pageable pageable, OrderStatus status, Long userId) {
-        Specification<Order> spec = OrderSpecification.filterOrders(status, userId.toString(), null, null, null, null, null);
+        Specification<Order> spec = OrderSpecification.filterOrders(status, userId, null, null, null, null, null);
         Page<Order> orders = orderRepository.findAll(spec, pageable);
         return new GlobalResponse<>(Status.SUCCESS, mapToPageResponse(orders));
     }
@@ -153,7 +154,7 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findByReference(reference)
                 .orElseThrow(() -> new EntityNotFoundException("Khong tim thay ma don hang"));
 
-        if (!order.getUserId().equals(userId.toString())) {
+        if (!order.getUserId().equals(userId)) {
             throw new AccessDeniedException("Ban khong co quyen truy cap don hang nay");
         }
         return new GlobalResponse<>(Status.SUCCESS, mapToOrderResponse(order, null));
@@ -165,8 +166,17 @@ public class OrderServiceImpl implements OrderService {
             Double minTotal, Double maxTotal, UUID productId,
             LocalDateTime startDate, LocalDateTime endDate, Pageable pageable) {
 
+        Long customerIdValue = null;
+        if (customerId != null && !customerId.isBlank()) {
+            try {
+                customerIdValue = Long.parseLong(customerId.trim());
+            } catch (NumberFormatException ex) {
+                throw new BadRequestException("customerId must be a number");
+            }
+        }
+
         Specification<Order> spec = OrderSpecification.filterOrders(
-                status, customerId, minTotal, maxTotal, productId, startDate, endDate);
+                status, customerIdValue, minTotal, maxTotal, productId, startDate, endDate);
 
         Page<Order> orders = orderRepository.findAll(spec, pageable);
         return new GlobalResponse<>(Status.SUCCESS, mapToPageResponse(orders));
@@ -188,8 +198,8 @@ public class OrderServiceImpl implements OrderService {
         }
 
         Order order = Order.builder()
-                .reference("TECHNOVA-" + System.currentTimeMillis())
-                .userId(userId.toString())
+                .reference("NGERSHOP-" + System.currentTimeMillis())
+                .userId(userId)
                 .totalAmount(cart.totalPrice())
                 .status(OrderStatus.PENDING)
                 .paymentMethod(request.paymentMethod())

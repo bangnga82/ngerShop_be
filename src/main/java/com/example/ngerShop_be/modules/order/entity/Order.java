@@ -47,7 +47,7 @@ public class Order {
     // Nếu đã cấu hình AuditorAware thì dùng @CreatedBy,
     // nếu chưa thì nên bỏ @CreatedBy để set thủ công từ JWT trong Service
     @Column(nullable = false, updatable = false)
-    String userId;
+    Long userId;
 
     @Column(columnDefinition = "TEXT")
     String notes;

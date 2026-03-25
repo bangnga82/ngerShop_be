@@ -1,8 +1,8 @@
 package com.example.ngerShop_be.modules.order.specification;
 
-import com.example.ngerShop_be.common.constants.OrderStatus;
 import com.example.ngerShop_be.modules.order.entity.Order;
 import com.example.ngerShop_be.modules.order.entity.OrderItem;
+import com.example.ngerShop_be.common.constants.OrderStatus;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
@@ -16,7 +16,7 @@ public class OrderSpecification {
 
     public static Specification<Order> filterOrders(
             OrderStatus status,
-            String userId,
+            Long userId,
             Double minTotal,
             Double maxTotal,
             UUID productId, // Lọc theo sản phẩm
@@ -32,7 +32,7 @@ public class OrderSpecification {
             }
 
             // 2. Lọc theo User ID
-            if (userId != null && !userId.isEmpty()) {
+            if (userId != null) {
                 predicates.add(cb.equal(root.get("userId"), userId));
             }
 
