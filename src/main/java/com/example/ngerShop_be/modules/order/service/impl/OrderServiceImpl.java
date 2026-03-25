@@ -81,6 +81,9 @@ public class OrderServiceImpl implements OrderService {
                 .mapToDouble(item -> priceMap.getOrDefault(item.variantId(), 0.0) * item.quantity())
                 .sum();
 
+        // Trừ kho ngay trong transaction (đảm bảo không bị âm)
+        productVariantService.updateStock(request.items());
+
         Order order = Order.builder()
                 .paymentMethod(request.paymentMethod())
                 .reference(GeneratorUtil.generatorReference())
@@ -92,12 +95,18 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         List<OrderItem> items = request.items().stream()
-                .map(i -> OrderItem.builder()
-                        .order(order)
-                        .variantId(i.variantId())
-                        .quantity(i.quantity())
-                        .price(priceMap.get(i.variantId()))
-                        .build())
+                .map(i -> {
+                    UUID variantId = i.variantId();
+                    ProductVariant variant = variantRepository.findById(variantId)
+                            .orElseThrow(() -> new NotFoundException("Khong tim thay bien the: " + variantId));
+                    return OrderItem.builder()
+                            .order(order)
+                            .productId(variant.getProduct().getId())
+                            .variantId(variantId)
+                            .quantity(i.quantity())
+                            .price(priceMap.get(variantId))
+                            .build();
+                })
                 .toList();
 
         order.setOrderItems(items);
@@ -189,19 +198,18 @@ public class OrderServiceImpl implements OrderService {
                 .createdDate(LocalDateTime.now())
                 .build();
 
+        List<OrderItemRequest> stockRequests = cart.items().stream()
+                .map(i -> new OrderItemRequest(i.variantId(), i.quantity()))
+                .toList();
+        productVariantService.updateStock(stockRequests);
+
         for (CartItemResponse cartItem : cart.items()) {
             ProductVariant variant = variantRepository.findById(cartItem.variantId())
                     .orElseThrow(() -> new NotFoundException("San pham khong ton tai: " + cartItem.variantId()));
 
-            if (variant.getStock() < cartItem.quantity()) {
-                throw new RuntimeException("San pham " + variant.getProduct().getName() + " khong du so luong");
-            }
-
-            variant.setStock(variant.getStock() - cartItem.quantity());
-            variantRepository.save(variant);
-
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
+                    .productId(variant.getProduct().getId())
                     .variantId(cartItem.variantId())
                     .quantity(cartItem.quantity())
                     .price(cartItem.price())

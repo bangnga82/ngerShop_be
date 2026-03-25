@@ -28,27 +28,24 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/api/v1/products/**",
+                                "/api/v1/categories/**",
+                                "/api/v1/variants/**",
+                                "/api/v1/attributes/**",
                                 "/swagger/**",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/api-docs/**",
                                 "/uploads/**"
                         ).permitAll()
-
-                        // Chỉ cho phép XEM sản phẩm tự do
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/products/**").permitAll()
-
-                        // Giỏ hàng và Đơn hàng phải Đăng nhập
-                        .requestMatchers("/api/v1/carts/**").authenticated()
-                        .requestMatchers("/api/v1/orders/**").authenticated()
-
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 );
 
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
-    // Trong file SecurityConfig.java
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
