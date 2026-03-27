@@ -1,10 +1,13 @@
 package com.example.ngerShop_be.modules.auth.dto;
 
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 
 @Getter
-@AllArgsConstructor
+@Builder
 public class AuthResponse {
-    private String token;
+    private String accessToken;
+    private String refreshToken;
+    /** Thời gian hết hạn access token (giây) */
+    private long expiresIn;
 }

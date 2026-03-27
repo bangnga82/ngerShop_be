@@ -1,12 +1,12 @@
 package com.example.ngerShop_be.modules.auth.service;
 
-
 import com.example.ngerShop_be.common.constants.UserStatus;
 import com.example.ngerShop_be.common.exception.BadRequestException;
 import com.example.ngerShop_be.config.security.JwtService;
 import com.example.ngerShop_be.modules.auth.dto.AuthResponse;
 import com.example.ngerShop_be.modules.auth.dto.LoginRequest;
 import com.example.ngerShop_be.modules.auth.dto.RegisterRequest;
+import com.example.ngerShop_be.modules.auth.entity.RefreshToken;
 import com.example.ngerShop_be.modules.user.entity.Role;
 import com.example.ngerShop_be.modules.user.entity.User;
 import com.example.ngerShop_be.modules.user.repository.RoleRepository;
@@ -27,15 +27,16 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.Iterator;
 
 @Service
 public class AuthService {
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
@@ -43,11 +44,11 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final RestTemplate restTemplate;
     private final Long expirationMinutes;
+    private final RefreshTokenService refreshTokenService;
 
     private final ConcurrentMap<String, Instant> oauthStateStore = new ConcurrentHashMap<>();
     private final Duration oauthStateTtl = Duration.ofMinutes(10);
 
-    // --- PHẢI CÓ CÁC DÒNG NÀY THÌ MỚI HẾT LỖI Ở DƯỚI ---
     @Value("${app.oauth.google.clientId}")
     private String googleClientId;
 
@@ -76,6 +77,7 @@ public class AuthService {
             JwtService jwtService,
             AuthenticationManager authenticationManager,
             RestTemplate restTemplate,
+            RefreshTokenService refreshTokenService,
             @Value("${app.security.jwt.expirationMinutes}") Long expirationMinutes
     ) {
         this.userRepository = userRepository;
@@ -84,6 +86,7 @@ public class AuthService {
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
         this.restTemplate = restTemplate;
+        this.refreshTokenService = refreshTokenService;
         this.expirationMinutes = expirationMinutes;
     }
 
@@ -110,11 +113,7 @@ public class AuthService {
 
         userRepository.save(user);
 
-        String token = jwtService.generateToken(
-                user.getId().toString(),
-                Map.of("email", user.getEmail())
-        );
-        return new AuthResponse(token);
+        return buildAuthResponse(user);
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -136,11 +135,35 @@ public class AuthService {
             throw new IllegalArgumentException("Invalid credentials");
         }
 
-        String token = jwtService.generateToken(
+        return buildAuthResponse(user);
+    }
+
+    /**
+     * Cấp access token mới dựa vào refresh token còn hạn.
+     */
+    public AuthResponse refresh(String rawRefreshToken) {
+        RefreshToken refreshToken = refreshTokenService.verifyRefreshToken(rawRefreshToken);
+
+        User user = userRepository.findById(refreshToken.getUserId())
+                .orElseThrow(() -> new BadRequestException("User không tồn tại"));
+
+        String accessToken = jwtService.generateToken(
                 user.getId().toString(),
                 Map.of("email", user.getEmail())
         );
-        return new AuthResponse(token);
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(rawRefreshToken)
+                .expiresIn(expirationMinutes * 60)
+                .build();
+    }
+
+    /**
+     * Logout: thu hồi refresh token của user.
+     */
+    public void logout(Long userId) {
+        refreshTokenService.revokeByUserId(userId);
     }
 
     public AuthResponse handleGoogleCallback(String code, String state) {
@@ -156,7 +179,8 @@ public class AuthService {
         String name = (String) userInfo.get("name");
         String picture = (String) userInfo.get("picture");
 
-        User user = userRepository.findByEmail(email).orElseGet(() -> createGoogleUser(email, name, picture));
+        User user = userRepository.findByEmail(email)
+                .orElseGet(() -> createGoogleUser(email, name, picture));
 
         if (user.getStatus() == UserStatus.LOCKED) {
             throw new BadRequestException("Account is locked");
@@ -164,11 +188,37 @@ public class AuthService {
         ensureUserRole(user);
         userRepository.save(user);
 
-        String token = jwtService.generateToken(
+        return buildAuthResponse(user);
+    }
+
+    public String getGoogleLoginUrl() {
+        String encodedRedirect = URLEncoder.encode(googleRedirectUri, StandardCharsets.UTF_8);
+        String encodedScope = URLEncoder.encode(googleScopes, StandardCharsets.UTF_8);
+        String state = generateOauthState();
+        return googleAuthUrl
+                + "?client_id=" + googleClientId
+                + "&redirect_uri=" + encodedRedirect
+                + "&response_type=code"
+                + "&scope=" + encodedScope
+                + "&state=" + state
+                + "&access_type=offline"
+                + "&prompt=consent";
+    }
+
+    // ===================== PRIVATE HELPERS =====================
+
+    private AuthResponse buildAuthResponse(User user) {
+        String accessToken = jwtService.generateToken(
                 user.getId().toString(),
                 Map.of("email", user.getEmail())
         );
-        return new AuthResponse(token);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken.getToken())
+                .expiresIn(expirationMinutes * 60)
+                .build();
     }
 
     private String exchangeCodeForAccessToken(String code) {
@@ -193,7 +243,8 @@ public class AuthService {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(accessToken);
         HttpEntity<Void> request = new HttpEntity<>(headers);
-        ResponseEntity<Map> response = restTemplate.exchange(googleUserInfoUrl, HttpMethod.GET, request, Map.class);
+        ResponseEntity<Map> response = restTemplate.exchange(
+                googleUserInfoUrl, HttpMethod.GET, request, Map.class);
         Map<String, Object> payload = response.getBody();
         if (payload == null) {
             throw new BadRequestException("Failed to get user info from Google");
@@ -233,13 +284,6 @@ public class AuthService {
         return last + " " + first;
     }
 
-    public String getGoogleLoginUrl() {
-        String encodedRedirect = URLEncoder.encode(googleRedirectUri, StandardCharsets.UTF_8);
-        String encodedScope = URLEncoder.encode(googleScopes, StandardCharsets.UTF_8);
-        String state = generateOauthState();
-        return googleAuthUrl + "?client_id=" + googleClientId + "&redirect_uri=" + encodedRedirect + "&response_type=code" + "&scope=" + encodedScope + "&state=" + state + "&access_type=offline" + "&prompt=consent";
-    }
-
     private String generateOauthState() {
         purgeExpiredOauthStates();
         String state = UUID.randomUUID().toString();
@@ -248,10 +292,12 @@ public class AuthService {
     }
 
     private void validateOauthState(String state) {
-        if (state == null || state.isBlank()) throw new BadRequestException("Missing OAuth state");
+        if (state == null || state.isBlank())
+            throw new BadRequestException("Missing OAuth state");
         purgeExpiredOauthStates();
         Instant expiresAt = oauthStateStore.remove(state);
-        if (expiresAt == null || Instant.now().isAfter(expiresAt)) throw new BadRequestException("Invalid OAuth state");
+        if (expiresAt == null || Instant.now().isAfter(expiresAt))
+            throw new BadRequestException("Invalid OAuth state");
     }
 
     private void purgeExpiredOauthStates() {

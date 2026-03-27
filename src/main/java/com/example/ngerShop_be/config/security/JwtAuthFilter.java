@@ -1,6 +1,5 @@
 package com.example.ngerShop_be.config.security;
 
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,8 +20,16 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+
+    // Các path filter sẽ KHÔNG xử lý JWT (public endpoints)
+    // Dùng exact path cho /api/auth/* thay vì prefix để tránh bỏ sót /logout
+    private final List<String> publicExactPaths = List.of(
+            "/api/auth/register",
+            "/api/auth/login",
+            "/api/auth/refresh",
+            "/api/auth/callback"
+    );
     private final List<String> publicPrefixes = List.of(
-            "/api/auth/",
             "/swagger/",
             "/swagger-ui/",
             "/v3/api-docs/",
@@ -38,10 +45,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
+        if (publicExactPaths.contains(path)) return true;
         for (String prefix : publicPrefixes) {
-            if (path.startsWith(prefix)) {
-                return true;
-            }
+            if (path.startsWith(prefix)) return true;
         }
         return false;
     }
