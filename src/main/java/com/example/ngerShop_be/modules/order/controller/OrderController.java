@@ -2,6 +2,7 @@ package com.example.ngerShop_be.modules.order.controller;
 
 import com.example.ngerShop_be.common.constants.OrderStatus;
 import com.example.ngerShop_be.common.constants.PaymentMethod;
+import com.example.ngerShop_be.common.exception.BadRequestException;
 import com.example.ngerShop_be.common.response.GlobalResponse;
 import com.example.ngerShop_be.common.response.PageResponse;
 import com.example.ngerShop_be.modules.order.dto.OrderRequest;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -45,8 +47,11 @@ public class OrderController {
     }
 
     @GetMapping("/{orderId}")
-    public GlobalResponse<OrderResponse> getOrderById(@PathVariable UUID orderId) {
-        return orderService.findOrderById(orderId);
+    public GlobalResponse<OrderResponse> getOrderById(@PathVariable UUID orderId, Authentication auth) {
+        Long userId = requireUserId(auth);
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        return orderService.findOrderById(orderId, userId, isAdmin);
     }
 
     @GetMapping("/reference/{reference}")
@@ -98,12 +103,12 @@ public class OrderController {
 
     private Long requireUserId(Authentication auth) {
         if (auth == null || auth.getName() == null) {
-            throw new IllegalArgumentException("Unauthorized");
+            throw new AuthenticationCredentialsNotFoundException("Unauthorized");
         }
         try {
             return Long.parseLong(auth.getName());
         } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("Invalid user id");
+            throw new BadRequestException("Invalid user id");
         }
     }
 }

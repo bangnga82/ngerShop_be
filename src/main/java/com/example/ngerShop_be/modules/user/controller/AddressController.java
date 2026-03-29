@@ -2,11 +2,13 @@ package com.example.ngerShop_be.modules.user.controller;
 
 import com.example.ngerShop_be.common.response.GlobalResponse;
 import com.example.ngerShop_be.common.response.MessageResponse;
+import com.example.ngerShop_be.common.exception.BadRequestException;
 import com.example.ngerShop_be.modules.user.dto.AddressRequest;
 import com.example.ngerShop_be.modules.user.dto.AddressResponse;
 import com.example.ngerShop_be.modules.user.service.AddressService;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -67,12 +69,12 @@ public class AddressController {
 
     private Long requireUserId(Authentication auth) {
         if (auth == null || auth.getName() == null) {
-            throw new RuntimeException("Unauthorized");
+            throw new AuthenticationCredentialsNotFoundException("Unauthorized");
         }
         try {
             return Long.parseLong(auth.getName());
         } catch (NumberFormatException ex) {
-            throw new RuntimeException("Invalid user id");
+            throw new BadRequestException("Invalid user id");
         }
     }
 }

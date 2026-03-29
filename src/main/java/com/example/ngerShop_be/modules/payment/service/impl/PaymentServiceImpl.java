@@ -10,6 +10,8 @@ import com.example.ngerShop_be.modules.user.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -40,18 +42,28 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public String createPaymentLink(String orderReference, HttpServletRequest request) {
         Order order = orderRepository.findByReference(orderReference)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy đơn hàng: " + orderReference));
+                .orElseThrow(() -> new IllegalArgumentException("KhÃ´ng tÃ¬m tháº¥y Ä‘Æ¡n hÃ ng: " + orderReference));
 
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        User user = userRepository.findByEmail(username)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng hiện tại"));
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw new AuthenticationCredentialsNotFoundException("Unauthorized");
+        }
+        Long userId;
+        try {
+            userId = Long.parseLong(authentication.getName());
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Invalid user id");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng hiá»‡n táº¡i"));
 
         if (!order.getUserId().equals(user.getId())) {
-            throw new IllegalArgumentException("Bạn không có quyền thanh toán đơn hàng này");
+            throw new IllegalArgumentException("Báº¡n khÃ´ng cÃ³ quyá»n thanh toÃ¡n Ä‘Æ¡n hÃ ng nÃ y");
         }
 
         if (order.getStatus() != OrderStatus.PENDING) {
-            throw new IllegalArgumentException("Đơn hàng không ở trạng thái chờ thanh toán");
+            throw new IllegalArgumentException("ÄÆ¡n hÃ ng khÃ´ng á»Ÿ tráº¡ng thÃ¡i chá» thanh toÃ¡n");
         }
 
         long amount = Math.round(order.getTotalAmount()); // VNPay amount will be multiplied by 100 later

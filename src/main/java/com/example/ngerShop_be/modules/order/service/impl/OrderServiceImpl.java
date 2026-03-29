@@ -144,9 +144,12 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public GlobalResponse<OrderResponse> findOrderById(UUID orderId) {
+    public GlobalResponse<OrderResponse> findOrderById(UUID orderId, Long userId, boolean isAdmin) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Khong tim thay don hang"));
+        if (!isAdmin && (userId == null || !order.getUserId().equals(userId))) {
+            throw new AccessDeniedException("Ban khong co quyen truy cap don hang nay");
+        }
         return new GlobalResponse<>(Status.SUCCESS, mapToOrderResponse(order, null));
     }
 

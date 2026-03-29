@@ -21,7 +21,7 @@ public interface OrderService {
     GlobalResponse<PageResponse<OrderResponse>> findOwnOrders(Pageable pageable, OrderStatus status, Long userId);
 
     // Xem chi tiết một đơn hàng
-    GlobalResponse<OrderResponse> findOrderById(UUID orderId);
+    GlobalResponse<OrderResponse> findOrderById(UUID orderId, Long userId, boolean isAdmin);
 
     // Admin hoặc Hệ thống cập nhật trạng thái đơn hàng
     GlobalResponse<OrderResponse> changeOrderStatus(UUID orderId, OrderStatus status);

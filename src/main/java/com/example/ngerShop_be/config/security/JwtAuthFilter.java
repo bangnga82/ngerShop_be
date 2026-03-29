@@ -27,7 +27,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             "/api/auth/register",
             "/api/auth/login",
             "/api/auth/refresh",
-            "/api/auth/callback"
+            "/api/auth/callback",
+            "/api/v1/payment/vnpay-callback"
     );
     private final List<String> publicPrefixes = List.of(
             "/swagger/",
