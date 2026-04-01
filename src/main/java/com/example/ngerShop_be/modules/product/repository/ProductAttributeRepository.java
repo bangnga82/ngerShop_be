@@ -24,4 +24,8 @@ public interface ProductAttributeRepository extends JpaRepository<ProductAttribu
 
     // Thêm hàm này nếu bạn muốn xóa nhanh tất cả thuộc tính của 1 Variant khi xóa Variant đó
     void deleteByProductVariantId(UUID variantId);
+
+    @Query("SELECT DISTINCT pa.value FROM ProductAttribute pa " +
+            "WHERE pa.type = com.example.ngerShop_be.common.constants.AttributeType.COLOR")
+    List<String> findDistinctColorValues();
 }
