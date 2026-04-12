@@ -13,6 +13,7 @@ public enum AttributeType {
 
     private final String value;
 
+
     AttributeType(String value) {
         this.value = value;
     }
