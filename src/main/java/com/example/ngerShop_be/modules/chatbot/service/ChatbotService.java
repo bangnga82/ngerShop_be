@@ -38,25 +38,37 @@ public class ChatbotService {
 
     public ChatResponse handle(ChatRequest req) {
         var categories = categoryRepository.findAll().stream()
-                .map(c -> c.getName())
+                .map(category -> category.getName())
                 .toList();
         var colors = productAttributeRepository.findDistinctColorValues();
-        ParsedQuery q = chatParser.parse(req == null ? null : req.message(), categories, colors);
+        var attributeValues = productAttributeRepository.findDistinctValues();
+
+        ParsedQuery query = chatParser.parse(
+                req == null ? null : req.message(),
+                categories,
+                colors,
+                attributeValues
+        );
 
         var spec = ProductSpecifications.distinct()
                 .and(ProductSpecifications.isActive())
-                .and(ProductSpecifications.categoryContains(q.category()))
-                .and(ProductSpecifications.colorContains(q.color()))
-                .and(ProductSpecifications.minVariantPrice(q.minPrice()))
-                .and(ProductSpecifications.maxVariantPrice(q.maxPrice()));
+                .and(ProductSpecifications.nameContains(query.keyword()))
+                .and(ProductSpecifications.categoryContains(query.category()))
+                .and(ProductSpecifications.colorContains(query.color()))
+                .and(ProductSpecifications.attributeValueContains(query.attributeValue()))
+                .and(ProductSpecifications.minVariantPrice(query.minPrice()))
+                .and(ProductSpecifications.maxVariantPrice(query.maxPrice()));
 
         List<Product> products = productRepository.findAll(spec, PageRequest.of(0, 5)).getContent();
-
         List<ProductResponse> data = products.stream()
                 .map(productMapperUtil::toProductResponse)
                 .toList();
 
-        String reply = "Mình tìm thấy " + data.size() + " sản phẩm phù hợp.";
+        String reply = buildReply(data.size(), query);
         return new ChatResponse(reply, data);
+    }
+
+    private String buildReply(int size, ParsedQuery query) {
+        return "Tim thay " + size + " san pham voi tim kiem, sau day la cac san pham de xuat cho ban.";
     }
 }

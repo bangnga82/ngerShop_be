@@ -28,4 +28,7 @@ public interface ProductAttributeRepository extends JpaRepository<ProductAttribu
     @Query("SELECT DISTINCT pa.value FROM ProductAttribute pa " +
             "WHERE pa.type = com.example.ngerShop_be.common.constants.AttributeType.COLOR")
     List<String> findDistinctColorValues();
+
+    @Query("SELECT DISTINCT pa.value FROM ProductAttribute pa")
+    List<String> findDistinctValues();
 }

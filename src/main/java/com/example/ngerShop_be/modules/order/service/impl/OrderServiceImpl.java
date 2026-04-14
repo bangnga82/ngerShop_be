@@ -117,8 +117,8 @@ public class OrderServiceImpl implements OrderService {
         Order savedOrder = orderRepository.save(order);
         notificationService.sendNotification(
                 user.getId(),
-                "Order created",
-                "Order " + savedOrder.getReference() + " has been created.",
+                "Dat hang thanh cong",
+                "Don hang " + savedOrder.getReference() + " da duoc tao.",
                 NotificationType.ORDER,
                 savedOrder.getId().toString()
         );
@@ -162,8 +162,8 @@ public class OrderServiceImpl implements OrderService {
         Order savedOrder = orderRepository.save(order);
         notificationService.sendNotification(
                 savedOrder.getUserId(),
-                "Order status updated",
-                "Order " + savedOrder.getReference() + " is now " + savedOrder.getStatus() + ".",
+                "Cap nhat trang thai don hang",
+                "Don hang " + savedOrder.getReference() + " da chuyen sang trang thai " + savedOrder.getStatus() + ".",
                 NotificationType.ORDER,
                 savedOrder.getId().toString()
         );
@@ -252,8 +252,8 @@ public class OrderServiceImpl implements OrderService {
         Order savedOrder = orderRepository.save(order);
         notificationService.sendNotification(
                 userId,
-                "Order created",
-                "Order " + savedOrder.getReference() + " has been created.",
+                "Dat hang thanh cong",
+                "Don hang " + savedOrder.getReference() + " da duoc tao.",
                 NotificationType.ORDER,
                 savedOrder.getId().toString()
         );

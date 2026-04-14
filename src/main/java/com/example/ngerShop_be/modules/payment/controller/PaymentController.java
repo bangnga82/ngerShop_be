@@ -89,8 +89,8 @@ public class PaymentController {
                             orderRepository.save(order);
                             notificationService.sendNotification(
                                     order.getUserId(),
-                                    "Payment successful",
-                                    "Order " + orderReference + " has been paid.",
+                                    "Thanh toan thanh cong",
+                                    "Don hang " + orderReference + " da duoc thanh toan.",
                                     NotificationType.PAYMENT,
                                     order.getId().toString()
                             );
@@ -101,8 +101,8 @@ public class PaymentController {
                         if (order.getStatus() != OrderStatus.PAID) {
                             notificationService.sendNotification(
                                     order.getUserId(),
-                                    "Payment failed",
-                                    "Payment amount mismatch for order " + orderReference + ".",
+                                    "Thanh toan that bai",
+                                    "So tien thanh toan cua don hang " + orderReference + " khong khop.",
                                     NotificationType.PAYMENT,
                                     order.getId().toString()
                             );
@@ -120,8 +120,8 @@ public class PaymentController {
                     if (order != null && order.getStatus() != OrderStatus.PAID) {
                         notificationService.sendNotification(
                                 order.getUserId(),
-                                "Payment failed",
-                                "Payment failed or cancelled for order " + orderReference + ".",
+                                "Thanh toan that bai",
+                                "Thanh toan cua don hang " + orderReference + " that bai hoac da bi huy.",
                                 NotificationType.PAYMENT,
                                 order.getId().toString()
                         );

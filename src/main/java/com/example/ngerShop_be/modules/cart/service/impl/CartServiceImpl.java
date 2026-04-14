@@ -2,10 +2,14 @@ package com.example.ngerShop_be.modules.cart.service.impl;
 
 import com.example.ngerShop_be.common.exception.NotFoundException;
 import com.example.ngerShop_be.common.response.GlobalResponse;
-import com.example.ngerShop_be.modules.cart.dto.*;
-import com.example.ngerShop_be.modules.cart.entity.*;
+import com.example.ngerShop_be.modules.cart.dto.CartItemResponse;
+import com.example.ngerShop_be.modules.cart.dto.CartRequest;
+import com.example.ngerShop_be.modules.cart.dto.CartResponse;
+import com.example.ngerShop_be.modules.cart.entity.Cart;
+import com.example.ngerShop_be.modules.cart.entity.CartItem;
 import com.example.ngerShop_be.modules.cart.repository.CartRepository;
 import com.example.ngerShop_be.modules.cart.service.CartService;
+import com.example.ngerShop_be.modules.product.entity.ProductAttribute;
 import com.example.ngerShop_be.modules.product.entity.ProductVariant;
 import com.example.ngerShop_be.modules.product.repository.ProductVariantRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,21 +31,18 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public GlobalResponse<CartResponse> addToCart(CartRequest request, Long userId) {
-        // Tìm Cart, không có thì tạo mới
-        Cart cart = cartRepository.findById(userId)
+        Cart cart = cartRepository.findCartDetailsByUserId(userId)
                 .orElseGet(() -> cartRepository.save(Cart.builder().userId(userId).items(new ArrayList<>()).build()));
 
-        // Check xem sản phẩm đã có trong giỏ chưa
         Optional<CartItem> existingItem = cart.getItems().stream()
-                .filter(i -> i.getVariant().getId().equals(request.variantId())).findFirst();
+                .filter(item -> item.getVariant().getId().equals(request.variantId()))
+                .findFirst();
 
         if (existingItem.isPresent()) {
-            // Có rồi thì cộng dồn số lượng
             existingItem.get().setQuantity(existingItem.get().getQuantity() + request.quantity());
         } else {
-            // Chưa có thì lấy thông tin Variant và thêm mới vào List
-            ProductVariant variant = variantRepository.findById(request.variantId())
-                    .orElseThrow(() -> new NotFoundException("Sản phẩm không tồn tại"));
+            ProductVariant variant = variantRepository.findDetailedById(request.variantId())
+                    .orElseThrow(() -> new NotFoundException("San pham khong ton tai"));
 
             CartItem newItem = CartItem.builder()
                     .cart(cart)
@@ -49,12 +51,14 @@ public class CartServiceImpl implements CartService {
                     .build();
             cart.getItems().add(newItem);
         }
+
         return GlobalResponse.ok(mapToCartResponse(cartRepository.save(cart)));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public GlobalResponse<CartResponse> getCart(Long userId) {
-        Cart cart = cartRepository.findById(userId)
+        Cart cart = cartRepository.findCartDetailsByUserId(userId)
                 .orElseGet(() -> Cart.builder().userId(userId).items(new ArrayList<>()).build());
         return GlobalResponse.ok(mapToCartResponse(cart));
     }
@@ -62,12 +66,13 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public GlobalResponse<CartResponse> updateQuantity(Long userId, UUID variantId, int quantity) {
-        Cart cart = cartRepository.findById(userId).orElseThrow(() -> new NotFoundException("Giỏ hàng trống"));
+        Cart cart = cartRepository.findCartDetailsByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("Gio hang trong"));
 
         cart.getItems().stream()
-                .filter(i -> i.getVariant().getId().equals(variantId))
+                .filter(item -> item.getVariant().getId().equals(variantId))
                 .findFirst()
-                .ifPresent(i -> i.setQuantity(quantity));
+                .ifPresent(item -> item.setQuantity(quantity));
 
         return GlobalResponse.ok(mapToCartResponse(cartRepository.save(cart)));
     }
@@ -75,9 +80,10 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public GlobalResponse<CartResponse> removeItem(Long userId, UUID variantId) {
-        Cart cart = cartRepository.findById(userId).orElseThrow(() -> new NotFoundException("Giỏ hàng trống"));
+        Cart cart = cartRepository.findCartDetailsByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("Gio hang trong"));
 
-        cart.getItems().removeIf(i -> i.getVariant().getId().equals(variantId));
+        cart.getItems().removeIf(item -> item.getVariant().getId().equals(variantId));
 
         return GlobalResponse.ok(mapToCartResponse(cartRepository.save(cart)));
     }
@@ -88,10 +94,9 @@ public class CartServiceImpl implements CartService {
         if (cartRepository.existsById(userId)) {
             cartRepository.deleteById(userId);
         }
-        return GlobalResponse.ok("Đã dọn sạch giỏ hàng");
+        return GlobalResponse.ok("Da don sach gio hang");
     }
 
-    // Hàm phụ trách tính Tổng tiền và convert sang DTO để trả về cho Frontend
     private CartResponse mapToCartResponse(Cart cart) {
         double totalPrice = 0;
         var itemResponses = new ArrayList<CartItemResponse>();
@@ -104,12 +109,28 @@ public class CartServiceImpl implements CartService {
             itemResponses.add(new CartItemResponse(
                     item.getVariant().getId(),
                     item.getVariant().getProduct().getName(),
+                    buildVariantLabel(item.getVariant()),
                     price,
                     item.getQuantity(),
                     subTotal,
                     item.getVariant().getImageUrl()
             ));
         }
+
         return new CartResponse(cart.getUserId(), itemResponses, totalPrice);
+    }
+
+    private String buildVariantLabel(ProductVariant variant) {
+        if (variant.getAttributes() == null || variant.getAttributes().isEmpty()) {
+            return "Default";
+        }
+
+        return variant.getAttributes().stream()
+                .map(this::formatAttributeLabel)
+                .collect(Collectors.joining(" / "));
+    }
+
+    private String formatAttributeLabel(ProductAttribute attribute) {
+        return attribute.getType().name() + ": " + attribute.getValue();
     }
 }

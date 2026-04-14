@@ -8,6 +8,8 @@ import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.Arrays;
+
 public final class ProductSpecifications {
     private ProductSpecifications() {}
 
@@ -32,6 +34,25 @@ public final class ProductSpecifications {
         );
     }
 
+    public static Specification<Product> nameContains(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return Specification.where(null);
+        }
+        String[] tokens = Arrays.stream(keyword.toLowerCase().trim().split("\\s+"))
+                .filter(token -> !token.isBlank())
+                .toArray(String[]::new);
+
+        if (tokens.length == 0) {
+            return Specification.where(null);
+        }
+
+        return (root, query, cb) -> cb.and(
+                Arrays.stream(tokens)
+                        .map(token -> cb.like(cb.lower(root.get("name")), "%" + token + "%"))
+                        .toArray(jakarta.persistence.criteria.Predicate[]::new)
+        );
+    }
+
     public static Specification<Product> colorContains(String color) {
         if (color == null || color.isBlank()) {
             return Specification.where(null);
@@ -42,6 +63,20 @@ public final class ProductSpecifications {
             return cb.and(
                     cb.equal(attribute.get("type"), AttributeType.COLOR),
                     cb.like(cb.lower(attribute.get("value")), "%" + color.toLowerCase() + "%")
+            );
+        };
+    }
+
+    public static Specification<Product> attributeValueContains(String attributeValue) {
+        if (attributeValue == null || attributeValue.isBlank()) {
+            return Specification.where(null);
+        }
+        return (root, query, cb) -> {
+            Join<Product, ProductVariant> variant = root.join("variants", JoinType.LEFT);
+            Join<ProductVariant, ProductAttribute> attribute = variant.join("attributes", JoinType.LEFT);
+            return cb.like(
+                    cb.lower(attribute.get("value")),
+                    "%" + attributeValue.toLowerCase() + "%"
             );
         };
     }
