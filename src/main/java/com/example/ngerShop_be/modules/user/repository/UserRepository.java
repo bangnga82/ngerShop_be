@@ -61,4 +61,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     long countByStatus(UserStatus status);
 
     List<User> findByCreatedAtAfter(Instant createdAt);
+
+    @Query("""
+        select distinct u.id from User u
+        join u.roles r
+        where r.name = :roleName
+        """)
+    List<Long> findUserIdsByRoleName(@Param("roleName") String roleName);
 }

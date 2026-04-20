@@ -31,6 +31,7 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/refresh",
                                 "/api/auth/callback",
+                                "/api/v1/contact-messages",
                                 "/api/v1/payment/vnpay-callback",
                                 "/api/v1/products/**",
                                 "/api/v1/categories/**",

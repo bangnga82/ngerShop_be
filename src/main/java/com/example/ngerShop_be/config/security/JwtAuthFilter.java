@@ -28,6 +28,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             "/api/auth/login",
             "/api/auth/refresh",
             "/api/auth/callback",
+            "/api/v1/contact-messages",
             "/api/v1/payment/vnpay-callback"
     );
     private final List<String> publicPrefixes = List.of(
