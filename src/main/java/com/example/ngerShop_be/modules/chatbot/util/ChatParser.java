@@ -18,6 +18,26 @@ public class ChatParser {
     private static final List<String> INTENT_KEYWORDS = List.of(
             "goi y", "tu van", "de xuat"
     );
+
+    private static final List<String> SHOP_INFO_KEYWORDS = List.of(
+            "ten shop", "ten cua hang", "shop ten gi", "shop la gi", "ban la ai", "thong tin shop"
+    );
+
+    private static final List<String> ADDRESS_KEYWORDS = List.of(
+            "dia chi", "o dau", "cua hang", "chi nhanh", "co so", "ban do", "map"
+    );
+
+    private static final List<String> CONTACT_KEYWORDS = List.of(
+            "hotline", "so dien thoai", "dien thoai", "sdt", "email", "lien he", "contact"
+    );
+
+    private static final List<String> PAYMENT_KEYWORDS = List.of(
+            "thanh toan", "phuong thuc thanh toan", "payment", "cod", "vnpay", "vn pay", "chuyen khoan"
+    );
+
+    private static final List<String> ORDER_KEYWORDS = List.of(
+            "dat hang", "mua hang", "order", "checkout", "cach mua", "huong dan mua"
+    );
     private static final List<String> STOPWORDS = List.of(
             "toi", "tôi", "minh", "mình", "muon", "muốn", "mua", "tim", "tìm",
             "kiem", "kiếm", "can", "cần", "lay", "lấy", "xem", "cho", "giup",
@@ -44,9 +64,7 @@ public class ChatParser {
         String category = matchValue(normalizedMessage, categories);
         String color = matchValue(normalizedMessage, colors);
         String attributeValue = matchValue(normalizedMessage, attributeValues);
-        ChatIntent intent = INTENT_KEYWORDS.stream().anyMatch(normalizedMessage::contains)
-                ? ChatIntent.RECOMMEND
-                : ChatIntent.UNKNOWN;
+        ChatIntent intent = detectIntent(normalizedMessage);
 
         Double minPrice = null;
         Double maxPrice = null;
@@ -69,6 +87,26 @@ public class ChatParser {
 
         String keyword = extractKeyword(originalMessage, category, color, attributeValue);
         return new ParsedQuery(category, color, attributeValue, keyword, minPrice, maxPrice, intent);
+    }
+
+    private ChatIntent detectIntent(String normalizedMessage) {
+        if (containsAny(normalizedMessage, SHOP_INFO_KEYWORDS)) return ChatIntent.SHOP_INFO;
+        if (containsAny(normalizedMessage, ADDRESS_KEYWORDS)) return ChatIntent.SHOP_ADDRESS;
+        if (containsAny(normalizedMessage, CONTACT_KEYWORDS)) return ChatIntent.CONTACT;
+        if (containsAny(normalizedMessage, PAYMENT_KEYWORDS)) return ChatIntent.PAYMENT_METHODS;
+        if (containsAny(normalizedMessage, ORDER_KEYWORDS)) return ChatIntent.ORDER_GUIDE;
+        if (containsAny(normalizedMessage, INTENT_KEYWORDS)) return ChatIntent.RECOMMEND;
+        return ChatIntent.UNKNOWN;
+    }
+
+    private boolean containsAny(String message, List<String> keywords) {
+        if (message == null || message.isBlank() || keywords == null || keywords.isEmpty()) return false;
+        for (String keyword : keywords) {
+            if (keyword != null && !keyword.isBlank() && message.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Double parseNumberWithUnit(String number, String unit) {

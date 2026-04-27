@@ -271,6 +271,15 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderResponse mapToOrderResponse(Order order, PaymentResponse payment) {
+        List<UUID> variantIds = order.getOrderItems().stream()
+                .map(OrderItem::getVariantId)
+                .toList();
+
+        Map<UUID, ProductVariant> variantsById = variantRepository
+                .findAllWithProductByIdIn(variantIds)
+                .stream()
+                .collect(Collectors.toMap(ProductVariant::getId, v -> v, (a, b) -> a));
+
         return new OrderResponse(
                 order.getId(),
                 order.getReference(),
@@ -278,7 +287,20 @@ public class OrderServiceImpl implements OrderService {
                 order.getPaymentMethod(),
                 order.getTotalAmount(),
                 order.getOrderItems().stream()
-                        .map(i -> new OrderItemResponse(i.getVariantId(), i.getQuantity(), i.getPrice()))
+                        .map(i -> {
+                            ProductVariant variant = variantsById.get(i.getVariantId());
+                            String productName = variant != null && variant.getProduct() != null
+                                    ? variant.getProduct().getName()
+                                    : null;
+                            String imageUrl = variant != null ? variant.getImageUrl() : null;
+                            return new OrderItemResponse(
+                                    i.getVariantId(),
+                                    i.getQuantity(),
+                                    i.getPrice(),
+                                    productName,
+                                    imageUrl
+                            );
+                        })
                         .toList(),
                 payment,
                 order.getCreatedDate()

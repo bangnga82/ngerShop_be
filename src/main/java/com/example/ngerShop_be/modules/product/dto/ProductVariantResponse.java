@@ -14,6 +14,7 @@ import java.util.UUID;
 @Builder
 public class ProductVariantResponse {
     UUID id;
+    UUID productId;
     String productName;
     Integer stock;
     Double price;

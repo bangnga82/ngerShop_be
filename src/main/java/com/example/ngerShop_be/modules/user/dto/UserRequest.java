@@ -16,7 +16,7 @@ public class UserRequest {
     @Size(max = 255, message = "Full name must be at most 255 characters")
     private String fullName;
 
-    @Pattern(regexp = "^(\\+84|0)[1-9]\\d{8}$", message = "Invalid phone number")
+    @Pattern(regexp = "^(\\+84|0)[1-9]\\d{8}$", message = "Thông tin số điện thoại không hợp lệ")
     private String phoneNumber;
 
     private Boolean gender;

@@ -87,6 +87,7 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         ProductVariant v = requireVariant(variantId);
         ProductVariantResponse response = ProductVariantResponse.builder()
                 .id(v.getId())
+                .productId(v.getProduct() != null ? v.getProduct().getId() : null)
                 .productName(v.getProduct().getName())
                 .stock(v.getStock())
                 .price(v.getPrice())

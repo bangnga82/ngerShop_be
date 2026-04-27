@@ -118,7 +118,7 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+                .orElseThrow(() -> new IllegalArgumentException("Thông tin đăng nhập không hợp lệ"));
 
         if (user.getStatus() == UserStatus.LOCKED) {
             throw new IllegalArgumentException("Account is locked");
@@ -132,7 +132,7 @@ public class AuthService {
             if (ex instanceof DisabledException) {
                 throw new IllegalArgumentException("Account is locked");
             }
-            throw new IllegalArgumentException("Invalid credentials");
+            throw new IllegalArgumentException("Thông tin đăng nhập không hợp lệ");
         }
 
         return buildAuthResponse(user);

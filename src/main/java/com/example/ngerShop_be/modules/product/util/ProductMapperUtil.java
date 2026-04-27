@@ -38,6 +38,7 @@ public class ProductMapperUtil {
         response.setVariants(product.getVariants().stream()
                 .map(v -> ProductVariantResponse.builder()
                         .id(v.getId())
+                        .productId(product.getId())
                         .productName(product.getName())
                         .stock(v.getStock())
                         .price(v.getPrice())

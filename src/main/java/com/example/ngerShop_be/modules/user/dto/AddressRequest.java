@@ -24,10 +24,8 @@ public class AddressRequest {
     @NotBlank
     @Size(max = 100)
     private String state;
-    @NotBlank
     @Size(max = 100)
     private String country;
-    @NotBlank
     @Size(max = 20)
     private String zipCode;
     @Size(max = 500)

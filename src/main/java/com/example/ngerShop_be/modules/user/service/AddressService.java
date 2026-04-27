@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AddressService {
     private final AddressRepository addressRepository;
     private final UserRepository userRepository;
+    private static final String DEFAULT_COUNTRY = "Vietnam";
 
     public AddressService(AddressRepository addressRepository, UserRepository userRepository) {
         this.addressRepository = addressRepository;
@@ -52,8 +53,19 @@ public class AddressService {
         existing.setStreet(update.getStreet());
         existing.setCity(update.getCity());
         existing.setState(update.getState());
-        existing.setCountry(update.getCountry());
-        existing.setZipCode(update.getZipCode());
+
+        // country/zipCode are optional in the UI; keep old values unless explicitly provided.
+        String nextCountry = trimToNull(update.getCountry());
+        if (nextCountry != null) {
+            existing.setCountry(nextCountry);
+        } else if (existing.getCountry() == null || existing.getCountry().isBlank()) {
+            existing.setCountry(DEFAULT_COUNTRY);
+        }
+
+        String nextZip = trimToNull(update.getZipCode());
+        if (nextZip != null) {
+            existing.setZipCode(nextZip);
+        }
         existing.setDescription(update.getDescription());
         if (update.isDefault()) {
             unsetDefaultForUser(existing.getUser());
@@ -100,11 +112,22 @@ public class AddressService {
         address.setStreet(request.getStreet());
         address.setCity(request.getCity());
         address.setState(request.getState());
-        address.setCountry(request.getCountry());
-        address.setZipCode(request.getZipCode());
+        address.setCountry(normalizeCountry(request.getCountry()));
+        address.setZipCode(trimToNull(request.getZipCode()));
         address.setDescription(request.getDescription());
         address.setIsDefault(request.isDefault());
         return address;
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static String normalizeCountry(String country) {
+        String trimmed = trimToNull(country);
+        return trimmed == null ? DEFAULT_COUNTRY : trimmed;
     }
 
     private void unsetDefaultForUser(User user) {
