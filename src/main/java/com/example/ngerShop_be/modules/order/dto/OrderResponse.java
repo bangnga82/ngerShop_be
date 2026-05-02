@@ -18,6 +18,14 @@ public class OrderResponse { // Chuyển thành CLASS
     OrderStatus status;
     PaymentMethod paymentMethod;
     Double totalAmount;
+    Integer addressId;
+    String recipient;
+    String recipientPhone;
+    String deliveryAddress;
+    LocalDateTime shippedAt;
+    LocalDateTime deliveredAt;
+    LocalDateTime estimatedDeliveryFrom;
+    LocalDateTime estimatedDeliveryTo;
     List<OrderItemResponse> items;
     Object paymentDetails;
     LocalDateTime createdDate;

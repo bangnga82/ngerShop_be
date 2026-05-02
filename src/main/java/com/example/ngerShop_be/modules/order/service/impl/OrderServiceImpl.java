@@ -26,6 +26,8 @@ import com.example.ngerShop_be.modules.product.repository.ProductVariantReposito
 import com.example.ngerShop_be.modules.product.service.ProductVariantService;
 import com.example.ngerShop_be.modules.product.util.GeneratorUtil;
 import com.example.ngerShop_be.modules.user.entity.User;
+import com.example.ngerShop_be.modules.user.entity.Address;
+import com.example.ngerShop_be.modules.user.repository.AddressRepository;
 import com.example.ngerShop_be.modules.user.repository.UserRepository;
 import com.example.ngerShop_be.modules.notification.service.NotificationService;
 import jakarta.persistence.EntityNotFoundException;
@@ -59,6 +61,7 @@ public class OrderServiceImpl implements OrderService {
     ProductRepository productRepository;
     ProductVariantRepository variantRepository;
     UserRepository userRepository;
+    AddressRepository addressRepository;
     NotificationService notificationService;
 
     @Override
@@ -66,6 +69,7 @@ public class OrderServiceImpl implements OrderService {
     public GlobalResponse<OrderResponse> createOrder(OrderRequest request, Long userId) {
         log.info("RECEIVE ORDER CREATE: {}", request.items());
         User user = requireUser(userId);
+        Address address = requireAddress(user, request.addressId());
 
         boolean isStockAvailable = productVariantService.checkStock(request.items());
         if (!isStockAvailable) {
@@ -95,6 +99,9 @@ public class OrderServiceImpl implements OrderService {
                 .userId(user.getId())
                 .totalAmount(totalAmount)
                 .addressId(request.addressId())
+                .recipientName(resolveRecipientName(user))
+                .recipientPhone(resolveRecipientPhone(user, address))
+                .deliveryAddress(buildDeliveryAddress(address))
                 .notes(request.notes())
                 .build();
 
@@ -158,6 +165,14 @@ public class OrderServiceImpl implements OrderService {
     public GlobalResponse<OrderResponse> changeOrderStatus(UUID orderId, OrderStatus status) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new EntityNotFoundException("Khong tim thay don hang"));
+        if (status == OrderStatus.SHIPPED && order.getShippedAt() == null) {
+            // Persist the moment the order enters shipping so we can compute ETA consistently.
+            order.setShippedAt(LocalDateTime.now());
+        }
+        if (status == OrderStatus.DELIVERED && order.getDeliveredAt() == null) {
+            // Persist the moment the order is marked delivered (actual delivered date).
+            order.setDeliveredAt(LocalDateTime.now());
+        }
         order.setStatus(status);
         Order savedOrder = orderRepository.save(order);
         notificationService.sendNotification(
@@ -218,6 +233,9 @@ public class OrderServiceImpl implements OrderService {
             throw new RuntimeException("Gio hang dang trong, khong the checkout");
         }
 
+        User user = requireUser(userId);
+        Address address = requireAddress(user, request.addressId());
+
         Order order = Order.builder()
                 .reference("TECHNOVA-" + System.currentTimeMillis())
                 .userId(userId)
@@ -225,6 +243,9 @@ public class OrderServiceImpl implements OrderService {
                 .status(OrderStatus.PENDING)
                 .paymentMethod(request.paymentMethod())
                 .addressId(request.addressId())
+                .recipientName(resolveRecipientName(user))
+                .recipientPhone(resolveRecipientPhone(user, address))
+                .deliveryAddress(buildDeliveryAddress(address))
                 .shippingFee(0.0)
                 .createdDate(LocalDateTime.now())
                 .build();
@@ -262,15 +283,25 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderResponse mapToResponse(Order order) {
+        EstimatedDelivery eta = computeEstimatedDelivery(order);
         return OrderResponse.builder()
                 .id(order.getId())
                 .reference(order.getReference())
                 .totalAmount(order.getTotalAmount())
                 .status(order.getStatus())
+                .addressId(order.getAddressId())
+                .recipient(resolveOrderRecipient(order))
+                .recipientPhone(resolveOrderRecipientPhone(order))
+                .deliveryAddress(resolveOrderDeliveryAddress(order))
+                .shippedAt(order.getShippedAt())
+                .deliveredAt(resolveDeliveredAt(order))
+                .estimatedDeliveryFrom(eta.from())
+                .estimatedDeliveryTo(eta.to())
                 .build();
     }
 
     private OrderResponse mapToOrderResponse(Order order, PaymentResponse payment) {
+        EstimatedDelivery eta = computeEstimatedDelivery(order);
         List<UUID> variantIds = order.getOrderItems().stream()
                 .map(OrderItem::getVariantId)
                 .toList();
@@ -280,13 +311,21 @@ public class OrderServiceImpl implements OrderService {
                 .stream()
                 .collect(Collectors.toMap(ProductVariant::getId, v -> v, (a, b) -> a));
 
-        return new OrderResponse(
-                order.getId(),
-                order.getReference(),
-                order.getStatus(),
-                order.getPaymentMethod(),
-                order.getTotalAmount(),
-                order.getOrderItems().stream()
+        return OrderResponse.builder()
+                .id(order.getId())
+                .reference(order.getReference())
+                .status(order.getStatus())
+                .paymentMethod(order.getPaymentMethod())
+                .totalAmount(order.getTotalAmount())
+                .addressId(order.getAddressId())
+                .recipient(resolveOrderRecipient(order))
+                .recipientPhone(resolveOrderRecipientPhone(order))
+                .deliveryAddress(resolveOrderDeliveryAddress(order))
+                .shippedAt(order.getShippedAt())
+                .deliveredAt(resolveDeliveredAt(order))
+                .estimatedDeliveryFrom(eta.from())
+                .estimatedDeliveryTo(eta.to())
+                .items(order.getOrderItems().stream()
                         .map(i -> {
                             ProductVariant variant = variantsById.get(i.getVariantId());
                             String productName = variant != null && variant.getProduct() != null
@@ -301,10 +340,163 @@ public class OrderServiceImpl implements OrderService {
                                     imageUrl
                             );
                         })
-                        .toList(),
-                payment,
-                order.getCreatedDate()
-        );
+                        .toList())
+                .paymentDetails(payment)
+                .createdDate(order.getCreatedDate())
+                .build();
+    }
+
+    private record EstimatedDelivery(LocalDateTime from, LocalDateTime to) {}
+
+    private EstimatedDelivery computeEstimatedDelivery(Order order) {
+        if (order == null) return new EstimatedDelivery(null, null);
+
+        LocalDateTime base = order.getShippedAt();
+        if (base == null && order.getStatus() != null) {
+            // Fallback for older orders created before shippedAt existed.
+            if (order.getStatus() == OrderStatus.SHIPPED || order.getStatus() == OrderStatus.DELIVERED) {
+                base = order.getLastModifiedDate() != null ? order.getLastModifiedDate() : order.getCreatedDate();
+            }
+        }
+        if (base == null) return new EstimatedDelivery(null, null);
+
+        return new EstimatedDelivery(base.plusDays(3), base.plusDays(5));
+    }
+
+    private LocalDateTime resolveDeliveredAt(Order order) {
+        if (order == null) return null;
+        if (order.getDeliveredAt() != null) return order.getDeliveredAt();
+
+        // Fallback for older orders created before deliveredAt existed.
+        if (order.getStatus() == OrderStatus.DELIVERED) {
+            return order.getLastModifiedDate() != null ? order.getLastModifiedDate() : order.getCreatedDate();
+        }
+        return null;
+    }
+
+    private Address requireAddress(User user, Integer addressId) {
+        if (addressId == null) {
+            throw new BadRequestException("Dia chi giao hang khong duoc trong");
+        }
+        return addressRepository.findByIdAndUser(addressId.longValue(), user)
+                .orElseThrow(() -> new NotFoundException("Address not found"));
+    }
+
+    private String resolveRecipientName(User user) {
+        if (user == null) return null;
+        if (user.getFullName() != null && !user.getFullName().isBlank()) return user.getFullName().trim();
+        if (user.getUsername() != null && !user.getUsername().isBlank()) return user.getUsername().trim();
+        return user.getEmail();
+    }
+
+    private String resolveRecipientPhone(User user, Address address) {
+        String fromAddress = address != null ? trimToNull(address.getPhoneNumber()) : null;
+        if (fromAddress != null) return fromAddress;
+        return user != null ? trimToNull(user.getPhoneNumber()) : null;
+    }
+
+    private String resolveOrderRecipient(Order order) {
+        String fromSnapshot = trimToNull(order.getRecipientName());
+        if (fromSnapshot != null) return fromSnapshot;
+        // best effort fallback
+        if (order.getUserId() != null) {
+            return userRepository.findById(order.getUserId()).map(this::resolveRecipientName).orElse(null);
+        }
+        return null;
+    }
+
+    private String resolveOrderRecipientPhone(Order order) {
+        String fromSnapshot = trimToNull(order.getRecipientPhone());
+        if (fromSnapshot != null) return fromSnapshot;
+        Address address = findAddressByOrder(order);
+        if (address != null) {
+            String fromAddress = trimToNull(address.getPhoneNumber());
+            if (fromAddress != null) return fromAddress;
+        }
+        if (order.getUserId() != null) {
+            return userRepository.findById(order.getUserId()).map(u -> trimToNull(u.getPhoneNumber())).orElse(null);
+        }
+        return null;
+    }
+
+    private String resolveOrderDeliveryAddress(Order order) {
+        String fromSnapshot = trimToNull(order.getDeliveryAddress());
+        Address address = findAddressByOrder(order);
+
+        // Backward-compat: older snapshots were built as "street, city, state, ..." (province before district).
+        // If we can still resolve the Address record and the snapshot matches that legacy ordering, rebuild it.
+        if (fromSnapshot != null && address != null && isLegacyAddressSnapshot(fromSnapshot, address)) {
+            return buildDeliveryAddress(address);
+        }
+
+        if (fromSnapshot != null) return fromSnapshot;
+        if (address != null) return buildDeliveryAddress(address);
+        return null;
+    }
+
+    private Address findAddressByOrder(Order order) {
+        if (order == null || order.getAddressId() == null) return null;
+        return addressRepository.findById(order.getAddressId().longValue()).orElse(null);
+    }
+
+    private String buildDeliveryAddress(Address address) {
+        if (address == null) return null;
+        String street = trimToNull(address.getStreet());
+        String city = trimToNull(address.getCity());
+        String state = trimToNull(address.getState());
+        String country = trimToNull(address.getCountry());
+        String zip = trimToNull(address.getZipCode());
+
+        // Simple, readable format (avoid trailing commas).
+        // NOTE: In this project, address.city is used as "Tinh/Thanh pho" and address.state as "Quan/Huyen".
+        // So the Vietnamese display order should be: street, state (district), city (province), zip, country.
+        StringBuilder sb = new StringBuilder();
+        if (street != null) sb.append(street);
+        if (state != null) appendWithComma(sb, state);
+        if (city != null) appendWithComma(sb, city);
+        if (zip != null) appendWithComma(sb, zip);
+        if (country != null) appendWithComma(sb, country);
+        return sb.length() == 0 ? null : sb.toString();
+    }
+
+    private static void appendWithComma(StringBuilder sb, String part) {
+        if (part == null || part.isBlank()) return;
+        if (sb.length() > 0) sb.append(", ");
+        sb.append(part.trim());
+    }
+
+    private static boolean isLegacyAddressSnapshot(String snapshot, Address address) {
+        if (snapshot == null || snapshot.isBlank() || address == null) return false;
+        String street = trimToNull(address.getStreet());
+        String city = trimToNull(address.getCity());
+        String state = trimToNull(address.getState());
+        if (street == null || city == null || state == null) return false;
+
+        String[] parts = snapshot.split(",");
+        if (parts.length < 3) return false;
+
+        String p0 = parts[0].trim();
+        String p1 = parts[1].trim();
+        String p2 = parts[2].trim();
+
+        return equalsIgnoreCaseTrim(p0, street)
+                && equalsIgnoreCaseTrim(p1, city)
+                && equalsIgnoreCaseTrim(p2, state);
+    }
+
+    private static boolean equalsIgnoreCaseTrim(String a, String b) {
+        if (a == null || b == null) return false;
+        return a.trim().equalsIgnoreCase(b.trim());
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static String coalesce(String a, String b) {
+        return trimToNull(a) != null ? a : b;
     }
 
     private PageResponse<OrderResponse> mapToPageResponse(Page<Order> page) {

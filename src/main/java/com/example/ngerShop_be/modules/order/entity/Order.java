@@ -34,6 +34,16 @@ public class Order {
 
     Integer addressId;
 
+    // Snapshot info at order time (avoid showing changed address later).
+    @Column(name = "recipient_name", length = 255)
+    String recipientName;
+
+    @Column(name = "recipient_phone", length = 50)
+    String recipientPhone;
+
+    @Column(name = "delivery_address", columnDefinition = "TEXT")
+    String deliveryAddress;
+
     Double totalAmount; // Tổng thanh toán (Tiền hàng + Phí ship)
 
     Double shippingFee; // Phí vận chuyển
@@ -43,6 +53,12 @@ public class Order {
 
     @Enumerated(EnumType.STRING)
     OrderStatus status;
+
+    @Column(name = "shipped_at")
+    LocalDateTime shippedAt;
+
+    @Column(name = "delivered_at")
+    LocalDateTime deliveredAt;
 
     // Nếu đã cấu hình AuditorAware thì dùng @CreatedBy,
     // nếu chưa thì nên bỏ @CreatedBy để set thủ công từ JWT trong Service
