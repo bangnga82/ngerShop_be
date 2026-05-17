@@ -48,11 +48,19 @@ public class ChatParser {
     );
 
     private static final Pattern RANGE_PATTERN =
-            Pattern.compile("tu\\s+([0-9][0-9\\s\\.]*)(k|trieu)?\\s+den\\s+([0-9][0-9\\s\\.]*)(k|trieu)?");
+            Pattern.compile("tu\\s+([0-9][0-9\\s\\.]*)\\s*(k|trieu)?\\s+den\\s+([0-9][0-9\\s\\.]*)\\s*(k|trieu)?");
     private static final Pattern BELOW_PATTERN =
-            Pattern.compile("duoi\\s+([0-9][0-9\\s\\.]*)(k|trieu)?");
+            Pattern.compile("duoi\\s+([0-9][0-9\\s\\.]*)\\s*(k|trieu)?");
     private static final Pattern ABOVE_PATTERN =
-            Pattern.compile("tren\\s+([0-9][0-9\\s\\.]*)(k|trieu)?");
+            Pattern.compile("tren\\s+([0-9][0-9\\s\\.]*)\\s*(k|trieu)?");
+
+    // Fallback for mojibake Vietnamese (UTF-8 bytes read as ISO-8859-1), e.g. "trên" -> "trÃªn".
+    private static final Pattern ABOVE_MOJIBAKE_PATTERN =
+            Pattern.compile("trÃªn\\s+([0-9][0-9\\s\\.]*)\\s*(k|trieu)?");
+    private static final Pattern BELOW_MOJIBAKE_PATTERN =
+            Pattern.compile("dÆ°á»›i\\s+([0-9][0-9\\s\\.]*)\\s*(k|trieu)?");
+    private static final Pattern RANGE_MOJIBAKE_PATTERN =
+            Pattern.compile("tá»«\\s+([0-9][0-9\\s\\.]*)\\s*(k|triá»‡u)?\\s+Ä‘áº¿n\\s+([0-9][0-9\\s\\.]*)\\s*(k|triá»‡u)?");
 
     public ParsedQuery parse(String msg, List<String> categories, List<String> colors, List<String> attributeValues) {
         if (msg == null || msg.isBlank()) {
@@ -82,6 +90,28 @@ public class ChatParser {
             Matcher above = ABOVE_PATTERN.matcher(normalizedMessage);
             if (above.find()) {
                 minPrice = parseNumberWithUnit(above.group(1), above.group(2));
+            }
+        }
+
+        // Fallback parse against the original message for cases where Vietnamese characters were mojibake'd
+        // before normalize() could help (e.g. "trên" arrives as "trÃªn").
+        if (minPrice == null && maxPrice == null) {
+            String rawLower = originalMessage;
+
+            Matcher rangeMb = RANGE_MOJIBAKE_PATTERN.matcher(rawLower);
+            if (rangeMb.find()) {
+                minPrice = parseNumberWithUnit(rangeMb.group(1), normalizeUnit(rangeMb.group(2)));
+                maxPrice = parseNumberWithUnit(rangeMb.group(3), normalizeUnit(rangeMb.group(4)));
+            } else {
+                Matcher belowMb = BELOW_MOJIBAKE_PATTERN.matcher(rawLower);
+                if (belowMb.find()) {
+                    maxPrice = parseNumberWithUnit(belowMb.group(1), normalizeUnit(belowMb.group(2)));
+                }
+
+                Matcher aboveMb = ABOVE_MOJIBAKE_PATTERN.matcher(rawLower);
+                if (aboveMb.find()) {
+                    minPrice = parseNumberWithUnit(aboveMb.group(1), normalizeUnit(aboveMb.group(2)));
+                }
             }
         }
 
@@ -128,6 +158,15 @@ public class ChatParser {
             return value * 1_000_000;
         }
         return value;
+    }
+
+    private String normalizeUnit(String unit) {
+        if (unit == null) return null;
+        String u = unit.trim().toLowerCase(Locale.ROOT);
+        if (u.isBlank()) return null;
+        // Mojibake "triệu"
+        if ("triá»‡u".equals(u)) return "trieu";
+        return u;
     }
 
     private String normalize(String input) {

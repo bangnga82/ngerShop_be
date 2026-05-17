@@ -73,7 +73,7 @@ public class OrderServiceImpl implements OrderService {
 
         boolean isStockAvailable = productVariantService.checkStock(request.items());
         if (!isStockAvailable) {
-            throw new BusinessException("Khong du hang trong kho.");
+            throw new BusinessException("Không đủ hàng trong kho.");
         }
 
         List<UUID> variantIds = request.items().stream()
@@ -124,8 +124,8 @@ public class OrderServiceImpl implements OrderService {
         Order savedOrder = orderRepository.save(order);
         notificationService.sendNotification(
                 user.getId(),
-                "Dat hang thanh cong",
-                "Don hang " + savedOrder.getReference() + " da duoc tao.",
+                "Đặt hàng thành công",
+                "Đơn hàng " + savedOrder.getReference() + " đã đươc tạo.",
                 NotificationType.ORDER,
                 savedOrder.getId().toString()
         );
