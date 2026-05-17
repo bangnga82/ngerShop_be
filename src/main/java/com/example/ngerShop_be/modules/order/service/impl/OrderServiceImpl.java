@@ -177,8 +177,8 @@ public class OrderServiceImpl implements OrderService {
         Order savedOrder = orderRepository.save(order);
         notificationService.sendNotification(
                 savedOrder.getUserId(),
-                "Cap nhat trang thai don hang",
-                "Don hang " + savedOrder.getReference() + " da chuyen sang trang thai " + savedOrder.getStatus() + ".",
+                "Cập nhật trạng thái đơn hàng",
+                "Đơn hàng " + savedOrder.getReference() + " đã chuyển sang trạng thái " + savedOrder.getStatus() + ".",
                 NotificationType.ORDER,
                 savedOrder.getId().toString()
         );
